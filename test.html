@@ -10,8 +10,11 @@
      * 1st argument is the name of the component.
      *   If the name is an string array, each name will become identical components.
      * 2nd & 3rd arguments are the number of inputs and outputs, respectively.
-     * 4th argument is the callback function that FBP provides.
-     *   It needs to be explicitly called so the outputs can be sent.
+     * 4th argument is the main task of the component.
+     *   The task function has no return values.
+     *   The number of arguments is equal to the 2nd argument plus 1, where the last
+     *   argument is  the callback function that FBP provides.
+     *   The callback function needs to be explicitly called to send the output.
      */
     FBP.component('add', 2, 1, function (x, y, callback) {
         callback(0, x + y);
