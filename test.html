@@ -8,7 +8,6 @@
     /*
      * Define a component.
      * 1st argument is the name of the component.
-     *   If the name is an string array, each name will become identical components.
      * 2nd & 3rd arguments are the number of inputs and outputs, respectively.
      * 4th argument is the main task of the component.
      *   The task function has no return values.
@@ -20,7 +19,14 @@
         callback(0, x + y);
     });
 
-    FBP.component('mul', 2, 1, function (x, y, callback) {
+    /*
+     * Another way to define a component:
+     *   use a configuration object as the 1st argument.
+     */
+    FBP.component({
+        // Required; this value is treated as same as the 1st input of the previous version
+        name: 'mul'
+    }, 2, 1, function (x, y, callback) {
         
         /*
          * Send output value to the corresponding port.
@@ -40,21 +46,19 @@
 
         /*
          * Add a starting point for the graph.
-         *   Beware the order of the start() calls.
-         *   The order will influence the order of input sequence while invoking the graph.
          * 1st argument is the name of the component that accepts the input.
          * 2nd argument is the port index for the component.
          */
-        F.start('add', 0);
-        F.start('add', 1);
-        F.start('mul', 1);
+        F.init('add', 0);
+        F.init('add', 1);
+        F.init('mul', 1);
 
         /*
-         * Add an arc for the graph.
-         * 1st and 3rd arguments specify the direction of the arc.
+         * Connect an out port toward another in port.
+         * 1st and 3rd arguments specify the direction of the connection.
          * 2nd and 4th arguments specify the port index for the 1st and 3rd components respectively.
          */
-        F.arc('add', 0, 'mul', 0);
+        F.connect('add', 0, 'mul', 0);
 
         /*
          * Add an ending point for the graph.
@@ -70,14 +74,13 @@
     /*
      * Invoke your graph.
      * FBP.graph(name) is the graph getter.
-     * The arguments for invoke() include first and second parts:
+     * The arguments for go() include first and second parts:
      *   1st part is a series of inputs that corresponds to each input ports.
-     *     Note that the input order must corresponds to the order of start() calls.
      *   2nd part is a callback function that is called when
      *     (1) The execution failed. In this case, the err argument specifies reasons of failure.
      *     (2) The execution succeeded, where the err argument is null, and the result argument is the execution result.
      */
-    FBP.graph('graph1').invoke(1, 2, 3, function (err, result) {
+    FBP.graph('graph1').go(1, 2, 3, function (err, result) {
         console.log(result); // should be (1 + 2) * 3 = 9
     });
     </script>
