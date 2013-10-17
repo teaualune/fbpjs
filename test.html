@@ -81,7 +81,7 @@
      *     (2) The execution succeeded, where the err argument is null, and the result argument is the execution result.
      */
     FBP.graph('graph1').go(1, 2, 3, function (err, result) {
-        console.log(result); // should be (1 + 2) * 3 = 9
+        console.log(result.outputs[0]); // should be 9
     });
     </script>
 </body>

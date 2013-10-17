@@ -94,6 +94,7 @@
                 F.go = function () {
                     var i = 0;
                     this.callback = arguments[arguments.length - 1];
+                    this.interval = Date.now();
                     for (i; i < arguments.length - 1; i = i + 1) {
                         FBP.component(this.inPorts[i].component).addInput(arguments[i], this.inPorts[i].order);
                     }
@@ -105,7 +106,11 @@
                     this.outputs[outOrder] = output;
                     if (this.outputs.length === this.outN) {
                         // end execution!
-                        this.callback.apply(FBP.graph(this.name), [ null ].concat(this.outputs));
+                        this.interval = Date.now() - this.interval;
+                        this.callback.apply(FBP.graph(this.name), [ null, {
+                            outputs: this.outputs,
+                            interval: this.interval
+                        }]);
                         FBP.cleanup(this.name);
                     }
                 };
