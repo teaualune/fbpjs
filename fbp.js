@@ -4,39 +4,45 @@
         var _c = {},
             _g = {};
         return {
-            component: function () {
+            component: function (config, taskConfig) {
                 if (arguments.length === 1) {
                     // getter
-                    return _c[arguments[0]];
+                    return _c[config];
                 } else {
                     // setter i.e. constructor
                     // if 1st argument is an array, we construct several instances
-                    var name;
-                    if ('string' === typeof arguments[0]) {
-                        name = arguments[0];
+                    var name = null,
+                        _inN = 0,
+                        task = null;
+                    if ('string' === typeof config) {
+                        name = config;
                     } else {
-                        name = arguments[0].name;
+                        name = config.name;
                     }
                     if (_c[name]) {
                         throw 'component has already defined';
-                    } else {
-                        _c[name] = {
-                            name: name,
-                            addInput: function (input, order) {
-                                var that = this;
-                                this.inputs[order] = input;
-                                this.inN = this.inN + 1;
-                                if (this.inN === this._inN) {
-                                    FBP.invokeComponent(this);
-                                }
-                            },
-                            inputs: [],
-                            inN: 0,
-                            _inN: arguments[1],
-                            _outN: arguments[2],
-                            task: arguments[3]
-                        };
                     }
+                    _inN = taskConfig.length - 1;
+                    task = taskConfig[_inN];
+                    if (_inN !== task.length - 1) {
+                        throw 'in port numbers do not match';
+                    }
+                    taskConfig.splice(_inN, 1);
+                    _c[name] = {
+                        name: name,
+                        addInput: function (value, inPort) {
+                            this.inN = this.inN + 1;
+                            this.inputs[inPort] = value;
+                            if (this.inN >= this._inN) {
+                                FBP.graph(this.graph).invokeComponent(this);
+                            }
+                        },
+                        inputs: {},
+                        inN: 0,
+                        _inN: _inN,
+                        args: taskConfig,
+                        task: task
+                    };
                 }
             },
             graph: function (name) {
@@ -49,36 +55,32 @@
                     components = [],
                     inPorts = [],
                     inN = 0,
-                    outPorts = [],
                     outN = 0,
-                    arcs = {},
+                    dests = {},
                     F = {
-                        init: function (name, order) {
+                        init: function (name, port) {
                             var component = FBP.component(name);
                             component.graph = graphName;
                             components.push(name);
-                            inPorts.push({
-                                component: name,
-                                order: order
-                            });
+                            inPorts[name + '.' + port] = {
+                                name: name,
+                                port: port
+                            };
                             inN = inN + 1;
                         },
-                        connect: function (inPort, inOrder, outPort, outOrder) {
-                            var outComponent = FBP.component(outPort);
-                            if (!outComponent.graph || outComponent.graph !== graphName) {
-                                outComponent.graph = graphName;
-                                components.push(outPort);
+                        connect: function (fromName, fromPort, toName, toPort) {
+                            var toComponent = FBP.component(toName);
+                            if (!toComponent.graph || toComponent.graph !== graphName) {
+                                toComponent.graph = graphName;
+                                components.push(toName);
                             }
-                            arcs[inPort + inOrder] = {
-                                component: outPort,
-                                order: outOrder
+                            dests[fromName + '.' + fromPort] = {
+                                name: toName,
+                                port: toPort
                             };
                         },
-                        end: function (name, order) {
-                            outPorts.push({
-                                component: name,
-                                order: order
-                            });
+                        end: function (name, port) {
+                            dests[name + '.' + port] = 'end';
                             outN = outN + 1;
                         }
                     };
@@ -87,56 +89,46 @@
                 F.components = components;
                 F.inPorts = inPorts;
                 F.inN = inN;
-                F.outPorts = outPorts;
                 F.outN = outN;
-                F.outputs = [];
-                F.arcs = arcs;
-                F.go = function () {
-                    var i = 0;
-                    this.callback = arguments[arguments.length - 1];
-                    this.interval = Date.now();
-                    for (i; i < arguments.length - 1; i = i + 1) {
-                        FBP.component(this.inPorts[i].component).addInput(arguments[i], this.inPorts[i].order);
-                    }
+                F.outputs = {};
+                F.dests = dests;
+                F.go = function (inputs, callback) {
+                    this.callback = callback;
+                    this.tic = Date.now();
+                    var input, component, inPort;
+                    for (input in inputs) { if (inputs.hasOwnProperty(input)) {
+                        component = FBP.component(this.inPorts[input].name);
+                        inPort = this.inPorts[input].port;
+                        component.addInput(inputs[input], inPort);
+                    }}
                 };
-                F.getNext = function (prev, prevOrder) {
-                    return this.arcs[prev + prevOrder] || 'end';
+                F.sendOutput = function (output, outPort) {
+                    var interval = Date.now() - this.tic;
+                    this.outputs[outPort] = output;
+                    this.callback.apply(this, [ null, {
+                        outputs: this.outputs,
+                        interval: interval
+                    }]);
                 };
-                F.sendOutput = function (output, outOrder) {
-                    this.outputs[outOrder] = output;
-                    if (this.outputs.length === this.outN) {
-                        // end execution!
-                        this.interval = Date.now() - this.interval;
-                        this.callback.apply(FBP.graph(this.name), [ null, {
-                            outputs: this.outputs,
-                            interval: this.interval
-                        }]);
-                        FBP.cleanup(this.name);
+                F.invokeComponent = function (component) {
+                    var that = this,
+                        input = [],
+                        i = 0;
+                    for (i; i < component.args.length; i = i + 1) {
+                        input[i] = component.inputs[component.args[i]];
                     }
+                    input[i] = function (outPort, value) {
+                        var destName = component.name + '.' + outPort;
+                            dest = that.dests[destName];
+                        if (dest === 'end') {
+                            that.sendOutput(value, destName);
+                        } else {
+                            FBP.component(dest.name).addInput(value, dest.port);
+                        }
+                    };
+                    component.task.apply(component, input);
                 };
                 _g[arguments[0]] = F;
-            },
-            invokeComponent: function (component) {
-                component.inputs.push(function (outOrder, output) {
-                    // catch outputs and send to next component
-                    var graph = FBP.graph(component.graph),
-                        next = graph.getNext(component.name, outOrder);
-                    if (next === 'end') {
-                        graph.sendOutput(output, outOrder);
-                    } else {
-                        FBP.component(next.component).addInput(output, next.order);
-                    }
-                });
-                component.task.apply(component, component.inputs);
-            },
-            cleanup: function (name) {
-                var graph = FBP.graph(name),
-                    i = 0;
-                for (i; i < graph.components.length; i = i + 1) {
-                    FBP.component(graph.components[i]).inputs = [];
-                    FBP.component(graph.components[i]).inN = 0;
-                }
-                graph.outputs = [];
             }
         }
     }());

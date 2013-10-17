@@ -15,9 +15,9 @@
      *   argument is  the callback function that FBP provides.
      *   The callback function needs to be explicitly called to send the output.
      */
-    FBP.component('add', 2, 1, function (x, y, callback) {
-        callback(0, x + y);
-    });
+    FBP.component('add', ['x', 'y', function (x, y, callback) {
+        callback('output', x + y);
+    }]);
 
     /*
      * Another way to define a component:
@@ -26,15 +26,15 @@
     FBP.component({
         // Required; this value is treated as same as the 1st input of the previous version
         name: 'mul'
-    }, 2, 1, function (x, y, callback) {
+    }, ['x', 'y', function (x, y, callback) {
         
         /*
          * Send output value to the corresponding port.
          * 1st argument, 0, specifies port index.
          * 2nd argument is the output value.
          */
-        callback(0, x * y);
-    });
+        callback('output', x * y);
+    }]);
 
     /*
      * Setup a executable graph.
@@ -49,16 +49,16 @@
          * 1st argument is the name of the component that accepts the input.
          * 2nd argument is the port index for the component.
          */
-        F.init('add', 0);
-        F.init('add', 1);
-        F.init('mul', 1);
+        F.init('add', 'x');
+        F.init('add', 'y');
+        F.init('mul', 'y');
 
         /*
          * Connect an out port toward another in port.
          * 1st and 3rd arguments specify the direction of the connection.
          * 2nd and 4th arguments specify the port index for the 1st and 3rd components respectively.
          */
-        F.connect('add', 0, 'mul', 0);
+        F.connect('add', 'output', 'mul', 'x');
 
         /*
          * Add an ending point for the graph.
@@ -68,7 +68,7 @@
          * 1st argument is the name of the component that links to the output.
          * 2nd argument is the port index for the component.
          */
-        F.end('mul', 0); // set 1st output of 'mul' as an end
+        F.end('mul', 'output'); // set 1st output of 'mul' as an end
     });
 
     /*
@@ -80,8 +80,12 @@
      *     (1) The execution failed. In this case, the err argument specifies reasons of failure.
      *     (2) The execution succeeded, where the err argument is null, and the result argument is the execution result.
      */
-    FBP.graph('graph1').go(1, 2, 3, function (err, result) {
-        console.log(result.outputs[0]); // should be 9
+    FBP.graph('graph1').go({
+        'add.x': 1,
+        'add.y': 2,
+        'mul.y': 3
+    }, function (err, result) {
+        console.log(result.outputs['mul.output']); // should be 9
     });
     </script>
 </body>
