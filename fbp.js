@@ -1,6 +1,7 @@
 (function () {
 
-    var FBP = (function () {
+    var root = this,
+        FBP = (function () {
         var _c = {},
             _g = {};
         return {
@@ -139,7 +140,7 @@
         }
         exports.FBP = FBP;
     } else {
-        window.FBP = FBP;
+        root.FBP = FBP;
     }
 
 }());
