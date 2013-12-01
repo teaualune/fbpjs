@@ -14,11 +14,13 @@
                     // if 1st argument is an array, we construct several instances
                     var name = null,
                         _inN = 0,
-                        task = null;
+                        task = null,
+                        state = null;
                     if ('string' === typeof config) {
                         name = config;
                     } else {
                         name = config.name;
+                        state = config.state || {};
                     }
                     if (_c[name]) {
                         throw 'component has already defined';
@@ -42,7 +44,8 @@
                         inN: 0,
                         _inN: _inN,
                         args: taskConfig,
-                        task: task
+                        task: task,
+                        state: state
                     };
                 }
             },
@@ -127,7 +130,7 @@
                             FBP.component(dest.name).addInput(value, dest.port);
                         }
                     };
-                    component.task.apply(component, input);
+                    component.task.bind(component.state).apply(component, input);
                 };
                 _g[arguments[0]] = F;
             }

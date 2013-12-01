@@ -6,21 +6,25 @@
     <script type="text/javascript" src="fbp.js"></script>
     <script type="text/javascript">
 
-    FBP.component('fib', ['begin', function (config, callback) {
-        var a2 = config.a0 + config.a1,
-            i = config.i || 2;
+    FBP.component({
+        name: 'fib',
+        state: {
+            i: 2
+        }
+    }, ['begin', function (config, callback) {
+        var a2 = config.a0 + config.a1;
         if (config.n === 0) {
             callback('end', config.a0);
         } else if (config.n === 1) {
             callback('end', config.a1);
         } else {
-            if (i === config.n) {
+            if (this.i === config.n) {
                 callback('end', a2);
             } else {
+                this.i = this.i + 1;
                 callback('next', {
                     a0: config.a1,
                     a1: a2,
-                    i: i + 1,
                     n: config.n
                 });
             }
