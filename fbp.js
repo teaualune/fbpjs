@@ -19,6 +19,29 @@
         var _c = {},
             _g = {};
         return {
+            addInput: function (g, c, inPort, value) {
+                c.inputs[inPort] = value;
+                if (objLength(c.inputs) === c.args.length) {
+                    FBP.invokeComponent(c, g);
+                }
+            },
+            invokeComponent: function (component, graph) {
+                var input = [],
+                    i = 0;
+                for (i; i < component.args.length; i = i + 1) {
+                    input[i] = component.inputs[component.args[i]];
+                }
+                input[i] = function (outPort, value) {
+                    var destName = component.name + '.' + outPort;
+                        dest = graph.arcs[destName];
+                    if (dest.end) {
+                        graph.sendOutput(value, destName);
+                    } else {
+                        FBP.addInput(graph, FBP.component(dest.name), dest.port, value);
+                    }
+                };
+                component.task.bind(component.state).apply(component, input);
+            },
             component: function (config, taskConfig) {
                 if (arguments.length === 1) {
                     // getter
@@ -27,7 +50,6 @@
                     // setter i.e. constructor
                     // if 1st argument is an array, we construct several instances
                     var name = null,
-                        _inN = 0,
                         task = null,
                         state = null;
                     if ('string' === typeof config) {
@@ -47,12 +69,6 @@
                     taskConfig.splice(taskConfig.length - 1, 1);
                     _c[name] = {
                         name: name,
-                        addInput: function (value, inPort) {
-                            this.inputs[inPort] = value;
-                            if (objLength(this.inputs) === this.args.length) {
-                                FBP.graph(this.graph).invokeComponent(this);
-                            }
-                        },
                         inputs: {}, // pool for waiting inputs from in ports
                         args: taskConfig, // an array of in ports names
                         task: task, // the task function
@@ -68,16 +84,15 @@
                 // graph constructor
                 var graphName = name,
                     components = [],
-                    inPorts = [],
                     inN = 0,
                     outN = 0,
-                    dests = {},
+                    arcs = {}, // sparse matrix of all connections, including inputs and outputs
                     F = {
                         init: function (name, port) {
                             var component = FBP.component(name);
                             component.graph = graphName;
                             components.push(name);
-                            inPorts[name + '.' + port] = {
+                            arcs[name + '.' + port] = {
                                 name: name,
                                 port: port
                             };
@@ -85,36 +100,35 @@
                         },
                         connect: function (fromName, fromPort, toName, toPort) {
                             var toComponent = FBP.component(toName);
-                            if (!toComponent.graph || toComponent.graph !== graphName) {
-                                toComponent.graph = graphName;
-                                components.push(toName);
-                            }
-                            dests[fromName + '.' + fromPort] = {
+                            components.push(toName);
+                            arcs[fromName + '.' + fromPort] = {
                                 name: toName,
                                 port: toPort
                             };
                         },
                         end: function (name, port) {
-                            dests[name + '.' + port] = 'end';
+                            arcs[name + '.' + port] = {
+                                name: name,
+                                port: port,
+                                end: true
+                            };
                             outN = outN + 1;
                         }
                     };
                 constructor(F);
                 F.name = graphName;
                 F.components = components;
-                F.inPorts = inPorts;
                 F.inN = inN;
                 F.outN = outN;
                 F.outputs = {};
-                F.dests = dests;
+                F.arcs = arcs;
                 F.go = function (inputs, callback) {
                     this.callback = callback;
                     this.tic = Date.now();
-                    var component, inPort;
                     objIterate(inputs, function (input) {
-                        component = FBP.component(this.inPorts[input].name);
-                        inPort = this.inPorts[input].port;
-                        component.addInput(inputs[input], inPort);
+                        var component = FBP.component(this.arcs[input].name),
+                            inPort = this.arcs[input].port;
+                        FBP.addInput(this, component, inPort, inputs[input]);
                     }.bind(this));
                 };
                 F.sendOutput = function (output, outPort) {
@@ -124,24 +138,6 @@
                         outputs: this.outputs,
                         interval: interval
                     }]);
-                };
-                F.invokeComponent = function (component) {
-                    var that = this,
-                        input = [],
-                        i = 0;
-                    for (i; i < component.args.length; i = i + 1) {
-                        input[i] = component.inputs[component.args[i]];
-                    }
-                    input[i] = function (outPort, value) {
-                        var destName = component.name + '.' + outPort;
-                            dest = that.dests[destName];
-                        if (dest === 'end') {
-                            that.sendOutput(value, destName);
-                        } else {
-                            FBP.component(dest.name).addInput(value, dest.port);
-                        }
-                    };
-                    component.task.bind(component.state).apply(component, input);
                 };
                 _g[arguments[0]] = F;
             }
