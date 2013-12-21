@@ -1,6 +1,20 @@
 (function () {
 
     var root = this,
+        objIterate = function (obj, iterate) {
+            for (var O in obj) {
+                if (obj.hasOwnProperty(O)) {
+                    iterate(O);
+                }
+            }
+        },
+        objLength = function (obj) {
+            var n = 0;
+            objIterate(obj, function () {
+                n = n + 1;
+            });
+            return n;
+        },
         FBP = (function () {
         var _c = {},
             _g = {};
@@ -25,27 +39,24 @@
                     if (_c[name]) {
                         throw 'component has already defined';
                     }
-                    _inN = taskConfig.length - 1;
-                    task = taskConfig[_inN];
-                    if (_inN !== task.length - 1) {
+                    task = taskConfig[taskConfig.length - 1];
+                    // task.length refers to number of task function inputs
+                    if (taskConfig.length !== task.length) {
                         throw 'in port numbers do not match';
                     }
-                    taskConfig.splice(_inN, 1);
+                    taskConfig.splice(taskConfig.length - 1, 1);
                     _c[name] = {
                         name: name,
                         addInput: function (value, inPort) {
-                            this.inN = this.inN + 1;
                             this.inputs[inPort] = value;
-                            if (this.inN >= this._inN) {
+                            if (objLength(this.inputs) === this.args.length) {
                                 FBP.graph(this.graph).invokeComponent(this);
                             }
                         },
-                        inputs: {},
-                        inN: 0,
-                        _inN: _inN,
-                        args: taskConfig,
-                        task: task,
-                        state: state
+                        inputs: {}, // pool for waiting inputs from in ports
+                        args: taskConfig, // an array of in ports names
+                        task: task, // the task function
+                        state: state // internal state of the component
                     };
                 }
             },
@@ -99,12 +110,12 @@
                 F.go = function (inputs, callback) {
                     this.callback = callback;
                     this.tic = Date.now();
-                    var input, component, inPort;
-                    for (input in inputs) { if (inputs.hasOwnProperty(input)) {
+                    var component, inPort;
+                    objIterate(inputs, function (input) {
                         component = FBP.component(this.inPorts[input].name);
                         inPort = this.inPorts[input].port;
                         component.addInput(inputs[input], inPort);
-                    }}
+                    }.bind(this));
                 };
                 F.sendOutput = function (output, outPort) {
                     var interval = Date.now() - this.tic;
