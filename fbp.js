@@ -4,32 +4,31 @@
 (function () {
 
     var root = this,
-        objIterate = function (obj, iterate) {
-            var O;
-            for (O in obj) {
-                if (obj.hasOwnProperty(O)) {
-                    iterate(O);
-                }
-            }
-        },
-        objLength = function (obj) {
-            var n = 0;
-            objIterate(obj, function () {
-                n = n + 1;
-            });
-            return n;
-        },
         FBP = (function () {
             var _c = {},
-                _g = {};
-            return {
-                addInput: function (g, c, inPort, value) {
-                    c.inputs[inPort] = value;
-                    if (objLength(c.inputs) === c.args.length) {
-                        FBP.invokeComponent(c, g);
+                _g = {},
+                objIterate = function (obj, iterate) {
+                    var O;
+                    for (O in obj) {
+                        if (obj.hasOwnProperty(O)) {
+                            iterate(O);
+                        }
                     }
                 },
-                invokeComponent: function (component, graph) {
+                objLength = function (obj) {
+                    var n = 0;
+                    objIterate(obj, function () {
+                        n = n + 1;
+                    });
+                    return n;
+                },
+                addInput = function (graph, component, inPort, value) {
+                    component.inputs[inPort] = value;
+                    if (objLength(component.inputs) === component.args.length) {
+                        invokeComponent(graph, component);
+                    }
+                },
+                invokeComponent = function (graph, component) {
                     var input = [],
                         i = 0;
                     for (i; i < component.args.length; i = i + 1) {
@@ -41,11 +40,12 @@
                         if (dest.end) {
                             graph.sendOutput(value, destName);
                         } else {
-                            FBP.addInput(graph, FBP.component(dest.name), dest.port, value);
+                            addInput(graph, FBP.component(dest.name), dest.port, value);
                         }
                     };
                     component.task.bind(component.state).apply(component, input);
-                },
+                };
+            return {
                 component: function (config, taskConfig) {
                     if (arguments.length === 1) {
                         // getter
@@ -131,7 +131,7 @@
                         objIterate(inputs, function (input) {
                             var component = FBP.component(this.arcs[input].name),
                                 inPort = this.arcs[input].port;
-                            FBP.addInput(this, component, inPort, inputs[input]);
+                            addInput(this, component, inPort, inputs[input]);
                         }.bind(this));
                     };
                     F.sendOutput = function (output, outPort) {
