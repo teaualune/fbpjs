@@ -21,3 +21,6 @@ See `test.html` for usage and documentations in the comments.
 * [Flow-based programming](http://en.wikipedia.org/wiki/Flow-based_programming)
 * [noflo](http://noflojs.org), most famous FBP implementation for JavaScript \(CoffeeScript\)
 
+### License
+
+[MIT License](http://opensource.org/licenses/MIT)
