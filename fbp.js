@@ -32,7 +32,9 @@
                 },
                 _go = function (inputs, callback) {
                     var that = this;
-                    that.callback = callback || defaultCallback;
+                    if (!that.callback) {
+                        that.callback = callback || defaultCallback;
+                    }
                     that.tic = Date.now();
                     objIterate(inputs, function (input) {
                         var component = FBP.component(that.arcs[input].name),
@@ -40,14 +42,17 @@
                         addInput(that, component, inPort, inputs[input]);
                     });
                 },
-                _sendOutput = function (output, outPort) {
+                _sendOutput = function (output, outPort, _err) {
                     var that = this,
-                        interval = Date.now() - that.tic;
-                    that.outputs[outPort] = output;
-                    that.callback.apply(that, [ null, {
-                        outputs: that.outputs,
-                        interval: interval
-                    }]);
+                        err = _err || null,
+                        results = {
+                            interval: Date.now() - that.tic
+                        };
+                    if (!err) {
+                        that.outputs[outPort] = output;
+                        results.outputs = that.outputs;
+                    }
+                    that.callback.apply(that, [ err, results ]);
                 };
             addInput = function (network, component, inPort, value) {
                 component.inputs[inPort] = value;
@@ -58,7 +63,7 @@
             outPortSender = function (network, destName, dest) {
                 return function (err, value) {
                     if (err) {
-                        // TODO error handling
+                        _sendOutput.apply(network, [ null, null, err ]);
                     } else if (dest.end) {
                         network.sendOutput(value, destName);
                     } else {

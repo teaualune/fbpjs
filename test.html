@@ -103,7 +103,11 @@
         'add.y': 2,
         'mul.y': 3
     }, function (err, result) {
-        console.log(result.outputs['mul.output']); // should be 9
+        if (err) {
+            alert(err);
+        } else {
+            console.log(result.outputs['mul.output']); // should be 9
+        }
     });
 
     </script>
