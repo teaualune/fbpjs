@@ -7,6 +7,7 @@
         FBP = (function () {
             var _c = {},
                 _n = {},
+
                 objIterate = function (obj, iterate) {
                     var O;
                     for (O in obj) {
@@ -15,6 +16,7 @@
                         }
                     }
                 },
+
                 objLength = function (obj) {
                     var n = 0;
                     objIterate(obj, function () {
@@ -22,14 +24,17 @@
                     });
                     return n;
                 },
+
                 addInput,
                 outPortSender,
                 invokeComponent,
+
                 defaultCallback = function (err) {
                     if (err) {
                         throw err;
                     }
                 },
+
                 _go = function (inputs, callback) {
                     var that = this;
                     if (!that.callback) {
@@ -42,6 +47,7 @@
                         addInput(that, component, inPort, inputs[input]);
                     });
                 },
+
                 _sendOutput = function (output, outPort, _err) {
                     var that = this,
                         err = _err || null,
@@ -53,13 +59,67 @@
                         results.outputs = that.outputs;
                     }
                     that.callback.apply(that, [ err, results ]);
+                },
+
+                imperativeDefine = function (name, constructor) {
+                    var components = [],
+                        arcs = {}, // sparse matrix of all connections, including inputs and outputs
+                        F = {
+                            init: function (name, port) {
+                                components.push(name);
+                                arcs[name + '.' + port] = {
+                                    name: name,
+                                    port: port
+                                };
+                            },
+                            connect: function (fromName, fromPort, toName, toPort) {
+                                components.push(toName);
+                                arcs[fromName + '.' + fromPort] = {
+                                    name: toName,
+                                    port: toPort
+                                };
+                            },
+                            end: function (name, port) {
+                                arcs[name + '.' + port] = {
+                                    name: name,
+                                    port: port,
+                                    end: true
+                                };
+                            }
+                        },
+                        network = {
+                            name: name,
+                            outputs: {}
+                        };
+                    constructor(F);
+                    network.components = components;
+                    network.arcs = arcs;
+                    network.go = _go.bind(network);
+                    network.sendOutput = _sendOutput.bind(network);
+                    _n[name] = network;
+                    return network;
+                },
+
+                declarativeDefine = function (config) {
+                    var network = {
+                            name: config.name,
+                            outputs: {},
+                            components: config.components,
+                            arcs: config.connections,
+                            go: _go.bind(network),
+                            sendOutput: _sendOutput.bind(network)
+                        };
+                    _n[network.name] = network;
+                    return network;
                 };
+
             addInput = function (network, component, inPort, value) {
                 component.inputs[inPort] = value;
                 if (objLength(component.inputs) === component.inPorts.length) {
                     invokeComponent(network, component);
                 }
             };
+
             outPortSender = function (network, destName, dest) {
                 return function (err, value) {
                     if (err) {
@@ -71,31 +131,30 @@
                     }
                 };
             };
+
             invokeComponent = function (network, component) {
                 var inN = component.inPorts.length,
                     outN = component.outPorts.length,
-                    input = [],
+                    args = [],
                     i = 0,
                     destName,
                     dest;
                 for (i; i < inN; i = i + 1) {
-                    input[i] = component.inputs[component.inPorts[i]];
+                    args[i] = component.inputs[component.inPorts[i]];
                 }
                 for (i = 0; i < outN; i = i + 1) {
                     destName = component.name + '.' + component.outPorts[i];
                     dest = network.arcs[destName];
-                    input[i + inN] = outPortSender(network, destName, dest);
+                    args[i + inN] = outPortSender(network, destName, dest);
                 }
-                component.body.apply(component.state, input);
+                component.body.apply(component.state, args);
             };
+
             return {
                 component: function (config) {
                     if ('string' === typeof config) {
-                        // getter
                         return _c[config];
                     } else {
-                        // setter i.e. constructor
-                        // if 1st argument is an array, we construct several instances
                         var name = config.name,
                             body = config.body,
                             state = config.state || {},
@@ -128,52 +187,16 @@
                     }
                 },
                 network: function (name) {
-                    // network getter
                     return _n[name];
                 },
-                define: function (name, constructor) {
-                    // network constructor
-                    var networkName = name,
-                        components = [],
-                        inN = 0,
-                        outN = 0,
-                        arcs = {}, // sparse matrix of all connections, including inputs and outputs
-                        F = {
-                            init: function (name, port) {
-                                components.push(name);
-                                arcs[name + '.' + port] = {
-                                    name: name,
-                                    port: port
-                                };
-                                inN = inN + 1;
-                            },
-                            connect: function (fromName, fromPort, toName, toPort) {
-                                components.push(toName);
-                                arcs[fromName + '.' + fromPort] = {
-                                    name: toName,
-                                    port: toPort
-                                };
-                            },
-                            end: function (name, port) {
-                                arcs[name + '.' + port] = {
-                                    name: name,
-                                    port: port,
-                                    end: true
-                                };
-                                outN = outN + 1;
-                            }
-                        };
-                    constructor(F);
-                    F.name = networkName;
-                    F.components = components;
-                    F.inN = inN;
-                    F.outN = outN;
-                    F.outputs = {};
-                    F.arcs = arcs;
-                    F.go = _go.bind(F);
-                    F.sendOutput = _sendOutput.bind(F);
-                    _n[networkName] = F;
-                    return F;
+                define: function () {
+                    var network;
+                    if (arguments.length === 2 && 'string' === typeof arguments[0]) {
+                        network = imperativeDefine(arguments[0], arguments[1]);
+                    } else {
+                        network = declarativeDefine(arguments[0]);
+                    }
+                    return network;
                 }
             };
         }());
