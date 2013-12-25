@@ -5,88 +5,107 @@
 <body>
     <script type="text/javascript" src="fbp.js"></script>
     <script type="text/javascript">
-    /*
-     * Define a component.
-     * 1st argument is the name of the component.
-     * 2nd & 3rd arguments are the number of inputs and outputs, respectively.
-     * 4th argument is the main task of the component.
-     *   The task function has no return values.
-     *   The number of arguments is equal to the 2nd argument plus 1, where the last
-     *   argument is  the callback function that FBP provides.
-     *   The callback function needs to be explicitly called to send the output.
-     */
-    FBP.component('add', ['x', 'y', function (x, y, callback) {
-        callback('output', x + y);
-    }]);
 
-    /*
-     * Another way to define a component:
-     *   use a configuration object as the 1st argument.
+    /* FBP.component(config)
+     *  Defines a component.
+     *  The config argument should contain the following properties:
+     *    name
+     *      Required.
+     *      The name of the component.
+     *    inPorts
+     *      Required.
+     *      An array of in port names.
+     *      If there is only one in port, a string of in port name is accepted too.
+     *    outPorts
+     *      Required.
+     *      An array of out port names.
+     *      If there is only one out port, a string of out port name is accepted too.
+     *    body
+     *      Required.
+     *      The component body.
+     *      Note that the function arguments should match the number of in ports and out ports.
+     *      While invoked, the out port arguments are sent as callback functions.
+     *      The callback function accepts two arguments: (err, value).
+     *      Normally the first argument should be sent with null.
+     *      Any error sent in leads to the termination of network.
+     *      The out port value should be sent to the second argument.
+     *    state
+     *      Optional.
+     *      A plain object that store component states.
+     *      More specifically, the object will be treated as 'this' argument.
+     *      Any access to 'this' argument in component body referes to the state object.
+     *      The object can store with JSON-safe type variables.
+     *      If this property is not specified, the state object is an empty object by default.
      */
+
     FBP.component({
-        // Required; this value is treated as same as the 1st input of the previous version
-        name: 'mul'
-    }, ['x', 'y', function (x, y, callback) {
-        
-        /*
-         * Send output value to the corresponding port.
-         * 1st argument, 0, specifies port index.
-         * 2nd argument is the output value.
-         */
-        callback('output', x * y);
-    }]);
+        name: 'add',
+        inPorts: ['x', 'y'],
+        outPorts: ['output'],
+        body: function (x, y, output) {
+            output(null, x + y);
+        }
+    });
 
-    /*
-     * Setup a executable graph.
-     * 1st argument is the name of the graph.
-     * 2nd argument is the configuration block of the graph.
-     *   Any starting points, arcs, and ending points should be added here.
+    FBP.component({
+        name: 'mul',
+        inPorts: ['x', 'y'],
+        outPorts: 'output',
+        body: function (x, y, o) {
+            o(null, x * y);
+        }
+    });
+
+    /* FBP.define(name, constructor)
+     *  Defines a network.
+     *  The constructor argument is a function with single argument 'F'.
+     *  The 'F' argument contains necessary functions to construct a network:
+     *    init(component, port)
+     *      Set an initial port for the network.
+     *      'port' specifies one of the in ports of the component.
+     *    connect(fromName, fromPort, toName, toPort)
+     *      Construct a connection between compoenents.
+     *      As the argument names refers, the fromPort of the fromName component will be connected to the toPort of the toName component.
+     *    end(component, port)
+     *      Set an end port for the network.
+     *      Note that end ports are not necessary; it depends on the network design.
+     *      'port' specifies one of the out ports of the component.
+     *  After definition the define function returns with the network object, so it is convenient to call 'go' directly to invoke the network.
+     *  Or the network object can be retrieved by the function FBP.network(name).
      */
-    FBP.setup('graph1', function (F) {
 
-        /*
-         * Add a starting point for the graph.
-         * 1st argument is the name of the component that accepts the input.
-         * 2nd argument is the port index for the component.
-         */
+    FBP.define('network', function (F) {
+
         F.init('add', 'x');
         F.init('add', 'y');
         F.init('mul', 'y');
 
-        /*
-         * Connect an out port toward another in port.
-         * 1st and 3rd arguments specify the direction of the connection.
-         * 2nd and 4th arguments specify the port index for the 1st and 3rd components respectively.
-         */
         F.connect('add', 'output', 'mul', 'x');
 
-        /*
-         * Add an ending point for the graph.
-         *   Note that the ending point might not be needed for a graph,
-         *   only if you do not care the output of the result.
-         *   It depends on your graph design.
-         * 1st argument is the name of the component that links to the output.
-         * 2nd argument is the port index for the component.
-         */
-        F.end('mul', 'output'); // set 1st output of 'mul' as an end
-    });
+        F.end('mul', 'output');
 
-    /*
-     * Invoke your graph.
-     * FBP.graph(name) is the graph getter.
-     * The arguments for go() include first and second parts:
-     *   1st part is a series of inputs that corresponds to each input ports.
-     *   2nd part is a callback function that is called when
-     *     (1) The execution failed. In this case, the err argument specifies reasons of failure.
-     *     (2) The execution succeeded, where the err argument is null, and the result argument is the execution result.
+    /* network.go(inputs, callback)
+     *  Invoke a network.
+     *  The inputs argument is a plain object where properties are the input values of the network.
+     *  For each property, the key is a string specifying component and its in port, connected by the '.' character.
+     *  The callback argument is the function that is called upon completion or error occurs.
+     *  The error occurs while the component body is invoking the out port functions with error arguments.
+     *  The results argument contains several properties:
+     *    outputs
+     *      A plain object containing the outputs of the network.
+     *      The structure is similar to the inputs argument.
+     *    interval
+     *      A number indicating execution time (in milliseconds).
      */
-    FBP.graph('graph1').go({
+
+    }).go({
         'add.x': 1,
         'add.y': 2,
         'mul.y': 3
     }, function (err, result) {
         console.log(result.outputs['mul.output']); // should be 9
     });
+
     </script>
 </body>
 </html>

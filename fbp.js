@@ -6,7 +6,7 @@
     var root = this,
         FBP = (function () {
             var _c = {},
-                _g = {},
+                _n = {},
                 objIterate = function (obj, iterate) {
                     var O;
                     for (O in obj) {
@@ -22,79 +22,119 @@
                     });
                     return n;
                 },
-                addInput = function (graph, component, inPort, value) {
-                    component.inputs[inPort] = value;
-                    if (objLength(component.inputs) === component.args.length) {
-                        invokeComponent(graph, component);
+                addInput,
+                outPortSender,
+                invokeComponent,
+                defaultCallback = function (err) {
+                    if (err) {
+                        throw err;
                     }
                 },
-                invokeComponent = function (graph, component) {
-                    var input = [],
-                        i = 0;
-                    for (i; i < component.args.length; i = i + 1) {
-                        input[i] = component.inputs[component.args[i]];
-                    }
-                    input[i] = function (outPort, value) {
-                        var destName = component.name + '.' + outPort,
-                            dest = graph.arcs[destName];
-                        if (dest.end) {
-                            graph.sendOutput(value, destName);
-                        } else {
-                            addInput(graph, FBP.component(dest.name), dest.port, value);
-                        }
-                    };
-                    component.task.bind(component.state).apply(component, input);
+                _go = function (inputs, callback) {
+                    var that = this;
+                    that.callback = callback || defaultCallback;
+                    that.tic = Date.now();
+                    objIterate(inputs, function (input) {
+                        var component = FBP.component(that.arcs[input].name),
+                            inPort = that.arcs[input].port;
+                        addInput(that, component, inPort, inputs[input]);
+                    });
+                },
+                _sendOutput = function (output, outPort) {
+                    var that = this,
+                        interval = Date.now() - that.tic;
+                    that.outputs[outPort] = output;
+                    that.callback.apply(that, [ null, {
+                        outputs: that.outputs,
+                        interval: interval
+                    }]);
                 };
+            addInput = function (network, component, inPort, value) {
+                component.inputs[inPort] = value;
+                if (objLength(component.inputs) === component.inPorts.length) {
+                    invokeComponent(network, component);
+                }
+            };
+            outPortSender = function (network, destName, dest) {
+                return function (err, value) {
+                    if (err) {
+                        // TODO error handling
+                    } else if (dest.end) {
+                        network.sendOutput(value, destName);
+                    } else {
+                        addInput(network, FBP.component(dest.name), dest.port, value);
+                    }
+                };
+            };
+            invokeComponent = function (network, component) {
+                var inN = component.inPorts.length,
+                    outN = component.outPorts.length,
+                    input = [],
+                    i = 0,
+                    destName,
+                    dest;
+                for (i; i < inN; i = i + 1) {
+                    input[i] = component.inputs[component.inPorts[i]];
+                }
+                for (i = 0; i < outN; i = i + 1) {
+                    destName = component.name + '.' + component.outPorts[i];
+                    dest = network.arcs[destName];
+                    input[i + inN] = outPortSender(network, destName, dest);
+                }
+                component.body.apply(component.state, input);
+            };
             return {
-                component: function (config, taskConfig) {
-                    if (arguments.length === 1) {
+                component: function (config) {
+                    if ('string' === typeof config) {
                         // getter
                         return _c[config];
                     } else {
                         // setter i.e. constructor
                         // if 1st argument is an array, we construct several instances
-                        var name = null,
-                            task = null,
-                            state = null;
-                        if ('string' === typeof config) {
-                            name = config;
-                        } else {
-                            name = config.name;
-                            state = config.state || {};
-                        }
+                        var name = config.name,
+                            body = config.body,
+                            state = config.state || {},
+                            inPorts = null,
+                            outPorts = null;
                         if (_c[name]) {
                             throw 'component has already defined';
                         }
-                        task = taskConfig[taskConfig.length - 1];
-                        // task.length refers to number of task function inputs
-                        if (taskConfig.length !== task.length) {
-                            throw 'in port numbers do not match';
+                        if ('string' === typeof config.inPorts) {
+                            inPorts = [config.inPorts];
+                        } else {
+                            inPorts = config.inPorts;
                         }
-                        taskConfig.splice(taskConfig.length - 1, 1);
+                        if ('string' === typeof config.outPorts) {
+                            outPorts = [config.outPorts];
+                        } else {
+                            outPorts = config.outPorts;
+                        }
+                        if (body.length !== inPorts.length + outPorts.length) {
+                            throw 'number of ports do not match between definition and function arguments';
+                        }
                         _c[name] = {
                             name: name,
                             inputs: {}, // pool for waiting inputs from in ports
-                            args: taskConfig, // an array of in ports names
-                            task: task, // the task function
+                            inPorts: inPorts, // an array of in ports names
+                            outPorts: outPorts, // an array of out ports names
+                            body: body, // the component body
                             state: state // internal state of the component
                         };
                     }
                 },
-                graph: function (name) {
-                    // graph getter
-                    return _g[name];
+                network: function (name) {
+                    // network getter
+                    return _n[name];
                 },
-                setup: function (name, constructor) {
-                    // graph constructor
-                    var graphName = name,
+                define: function (name, constructor) {
+                    // network constructor
+                    var networkName = name,
                         components = [],
                         inN = 0,
                         outN = 0,
                         arcs = {}, // sparse matrix of all connections, including inputs and outputs
                         F = {
                             init: function (name, port) {
-                                var component = FBP.component(name);
-                                component.graph = graphName;
                                 components.push(name);
                                 arcs[name + '.' + port] = {
                                     name: name,
@@ -119,30 +159,16 @@
                             }
                         };
                     constructor(F);
-                    F.name = graphName;
+                    F.name = networkName;
                     F.components = components;
                     F.inN = inN;
                     F.outN = outN;
                     F.outputs = {};
                     F.arcs = arcs;
-                    F.go = function (inputs, callback) {
-                        this.callback = callback;
-                        this.tic = Date.now();
-                        objIterate(inputs, function (input) {
-                            var component = FBP.component(this.arcs[input].name),
-                                inPort = this.arcs[input].port;
-                            addInput(this, component, inPort, inputs[input]);
-                        }.bind(this));
-                    };
-                    F.sendOutput = function (output, outPort) {
-                        var interval = Date.now() - this.tic;
-                        this.outputs[outPort] = output;
-                        this.callback.apply(this, [ null, {
-                            outputs: this.outputs,
-                            interval: interval
-                        }]);
-                    };
-                    _g[graphName] = F;
+                    F.go = _go.bind(F);
+                    F.sendOutput = _sendOutput.bind(F);
+                    _n[networkName] = F;
+                    return F;
                 }
             };
         }());

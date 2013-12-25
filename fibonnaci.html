@@ -10,34 +10,35 @@
         name: 'fib',
         state: {
             i: 2
-        }
-    }, ['begin', function (config, callback) {
-        var a2 = config.a0 + config.a1;
-        if (config.n === 0) {
-            callback('end', config.a0);
-        } else if (config.n === 1) {
-            callback('end', config.a1);
-        } else {
-            if (this.i === config.n) {
-                callback('end', a2);
+        },
+        inPorts: 'begin',
+        outPorts: ['next', 'end'],
+        body: function (config, next, end) {
+            var a2 = config.a0 + config.a1;
+            if (config.n === 0) {
+                end(null, config.a0);
+            } else if (config.n === 1) {
+                end(null, config.a1);
             } else {
-                this.i = this.i + 1;
-                callback('next', {
-                    a0: config.a1,
-                    a1: a2,
-                    n: config.n
-                });
+                if (this.i === config.n) {
+                    end(null, a2);
+                } else {
+                    this.i = this.i + 1;
+                    next(null, {
+                        a0: config.a1,
+                        a1: a2,
+                        n: config.n
+                    });
+                }
             }
         }
-    }]);
+    });
 
-    FBP.setup('fibonacci', function (F) {
+    FBP.define('fibonacci', function (F) {
         F.init('fib', 'begin');
         F.end('fib', 'end');
         F.connect('fib', 'next', 'fib', 'begin');
-    });
-
-    FBP.graph('fibonacci').go({
+    }).go({
         'fib.begin': {
             a0: 1,
             a1: 1,
