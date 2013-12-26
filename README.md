@@ -4,7 +4,7 @@ FBP.js
 A minified and simple implementation of flow-based programming for front-end JavaScript
 ---------------------------------------------------------------------------------------
 
-### introduction
+### Introduction
 
 The purpose of the project is to implement a minified, easy-to-configure library for flow-based programming \(FBP\) paradigm.
 
@@ -114,7 +114,7 @@ The `inputs` argument is a plain object containing input values to the network.
 
 For each key-value pair in `inputs`, the key is the initial port name and the value is the input value for it.
 
-Initial port name can be specified by connecting `.` character, like what we have done in declarative network definition.
+Initial port name can be specified by connecting `.` character, like what we have done in [declarative network definition](#define-a-network-the-declarative-way).
 
 The `callback` argument is a function with signiture `function (err, result)`.
 

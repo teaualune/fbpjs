@@ -34,10 +34,13 @@
         }
     });
 
-    FBP.define('fibonacci', function (F) {
-        F.init('fib', 'begin');
-        F.end('fib', 'end');
-        F.connect('fib', 'next', 'fib', 'begin');
+    FBP.define({
+        name: 'fibonacci',
+        init: 'fib.begin',
+        end: 'fib.end',
+        connections: {
+            'fib.next': 'fib.begin'
+        }
     }).go({
         'fib.begin': {
             a0: 1,

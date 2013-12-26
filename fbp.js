@@ -25,6 +25,18 @@
                     return n;
                 },
 
+                portEncode = function (component, port) {
+                    return component + '.' + port;
+                },
+
+                portDecode = function (name) {
+                    var v = name.split('.');
+                    return {
+                        name: v[0],
+                        port: v[1]
+                    }
+                },
+
                 addInput,
                 outPortSender,
                 invokeComponent,
@@ -105,10 +117,23 @@
                             name: config.name,
                             outputs: {},
                             components: config.components,
-                            arcs: config.connections,
-                            go: _go.bind(network),
-                            sendOutput: _sendOutput.bind(network)
-                        };
+                            arcs: {}
+                        },
+                        init = ('string' === typeof config.init) ? [config.init] : config.init,
+                        end = ('string' === typeof config.end) ? [config.end] : config.end,
+                        i;
+                    for (i = 0; i < init.length; i = i + 1) {
+                        network.arcs[init[i]] = portDecode(init[i]);
+                    }
+                    objIterate(config.connections, function (conn) {
+                        network.arcs[conn] = portDecode(config.connections[conn]);
+                    });
+                    for (i = 0; i < end.length; i = i + 1) {
+                        network.arcs[end[i]] = portDecode(end[i]);
+                        network.arcs[end[i]].end = true;
+                    }
+                    network.go = _go.bind(network);
+                    network.sendOutput = _sendOutput.bind(network);
                     _n[network.name] = network;
                     return network;
                 };
