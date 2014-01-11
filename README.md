@@ -127,7 +127,7 @@ The `results` argument contains several properties:
 ### Reference
 
 * [Flow-based programming](http://en.wikipedia.org/wiki/Flow-based_programming)
-* [noflo](http://noflojs.org), the most famous FBP implementation for JavaScript \(written in CoffeeScript\)
+* [NoFlo](http://noflojs.org), the most famous FBP implementation for JavaScript \(written in CoffeeScript\)
 
 ### License
 

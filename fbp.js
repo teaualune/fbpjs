@@ -116,7 +116,7 @@
                     var network = {
                             name: config.name,
                             outputs: {},
-                            components: config.components,
+                            components: [],
                             arcs: {}
                         },
                         init = ('string' === typeof config.init) ? [config.init] : config.init,
@@ -124,9 +124,11 @@
                         i;
                     for (i = 0; i < init.length; i = i + 1) {
                         network.arcs[init[i]] = portDecode(init[i]);
+                        network.components.push(network.arcs[init[i]].name);
                     }
                     objIterate(config.connections, function (conn) {
                         network.arcs[conn] = portDecode(config.connections[conn]);
+                        network.components.push(network.arcs[conn].name);
                     });
                     for (i = 0; i < end.length; i = i + 1) {
                         network.arcs[end[i]] = portDecode(end[i]);
