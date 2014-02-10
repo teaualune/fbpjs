@@ -25,8 +25,16 @@
                     return n;
                 },
 
-                portEncode = function (component, port) {
-                    return component + '.' + port;
+                portEncode = function (portObj) {
+                    var name, port;
+                    if (arguments.length === 1) {
+                        name = portObj.name;
+                        port = portObj.port;
+                    } else {
+                        name = arguments[0];
+                        port = arguments[1];
+                    }
+                    return name + '.' + port;
                 },
 
                 portDecode = function (name) {
@@ -47,52 +55,66 @@
                     }
                 },
 
-                _go = function (inputs, callback) {
-                    var that = this;
-                    if (!that.callback) {
-                        that.callback = callback || defaultCallback;
-                    }
+                Runtime = function (network, callback) {
+                    var that = this,
+                        i = 0;
+                    that.nname = network.name;
+                    that.addInput = addInput;
+                    that.invokeComponent = invokeComponent;
+                    that.sendOutput = _sendOutput;
+                    that.arcs = network.arcs;
+                    that.states = {};
+                    that.inputs = {};
+                    that.callback = callback || defaultCallback;
                     that.tic = Date.now();
+                    objIterate(network.components, function (c) {
+                        that.states[c] = FBP.component(c).state || {};
+                        that.inputs[c] = {};
+                    });
+                    that.inputs[network.name] = {};
+                },
+
+                _go = function (inputs, callback) {
+                    var runtime = new Runtime(this, callback);
                     objIterate(inputs, function (input) {
-                        var component = FBP.component(that.arcs[input].name),
-                            inPort = that.arcs[input].port;
-                        addInput(that, component, inPort, inputs[input]);
+                        runtime.addInput(input, inputs[input]);
                     });
                 },
 
-                _sendOutput = function (output, outPort, _err) {
-                    var that = this,
+                _sendOutput = function (output, portCode, _err) {
+                    var runtime = this,
                         err = _err || null,
                         results = {
-                            interval: Date.now() - that.tic
+                            interval: Date.now() - runtime.tic
                         };
                     if (!err) {
-                        that.outputs[outPort] = output;
-                        results.outputs = that.outputs;
+                        runtime.inputs[runtime.nname][portCode] = output;
+                        results.outputs = runtime.inputs[runtime.nname];
                     }
-                    that.callback.apply(that, [ err, results ]);
+                    runtime.callback.apply(runtime, [ err, results ]);
                 },
 
                 imperativeDefine = function (name, constructor) {
-                    var components = [],
+                    var components = {},
                         arcs = {}, // sparse matrix of all connections, including inputs and outputs
                         F = {
                             init: function (name, port) {
-                                components.push(name);
-                                arcs[name + '.' + port] = {
+                                components[name] = true;
+                                arcs[portEncode(name, port)] = {
                                     name: name,
                                     port: port
                                 };
                             },
                             connect: function (fromName, fromPort, toName, toPort) {
-                                components.push(toName);
-                                arcs[fromName + '.' + fromPort] = {
+                                var fromCode = portEncode(fromName, fromPort);
+                                components[toName] = true;
+                                arcs[fromCode] = {
                                     name: toName,
                                     port: toPort
                                 };
                             },
                             end: function (name, port) {
-                                arcs[name + '.' + port] = {
+                                arcs[portEncode(name, port)] = {
                                     name: name,
                                     port: port,
                                     end: true
@@ -107,7 +129,6 @@
                     network.components = components;
                     network.arcs = arcs;
                     network.go = _go.bind(network);
-                    network.sendOutput = _sendOutput.bind(network);
                     _n[name] = network;
                     return network;
                 },
@@ -116,7 +137,7 @@
                     var network = {
                             name: config.name,
                             outputs: {},
-                            components: [],
+                            components: {},
                             arcs: {}
                         },
                         init = ('string' === typeof config.init) ? [config.init] : config.init,
@@ -124,57 +145,61 @@
                         i;
                     for (i = 0; i < init.length; i = i + 1) {
                         network.arcs[init[i]] = portDecode(init[i]);
-                        network.components.push(network.arcs[init[i]].name);
+                        network.components[network.arcs[init[i]].name] = true;
                     }
                     objIterate(config.connections, function (conn) {
                         network.arcs[conn] = portDecode(config.connections[conn]);
-                        network.components.push(network.arcs[conn].name);
+                        network.components[network.arcs[conn].name] = true;
                     });
                     for (i = 0; i < end.length; i = i + 1) {
                         network.arcs[end[i]] = portDecode(end[i]);
                         network.arcs[end[i]].end = true;
                     }
                     network.go = _go.bind(network);
-                    network.sendOutput = _sendOutput.bind(network);
                     _n[network.name] = network;
                     return network;
                 };
 
-            addInput = function (network, component, inPort, value) {
-                component.inputs[inPort] = value;
-                if (objLength(component.inputs) === component.inPorts.length) {
-                    invokeComponent(network, component);
+            addInput = function (portCode, value) {
+                var runtime = this,
+                    portObj = portDecode(portCode),
+                    component = FBP.component(portObj.name);
+                runtime.inputs[portObj.name][portObj.port] = value;
+                if (objLength(runtime.inputs[portObj.name]) === component.inPorts.length) {
+                    runtime.invokeComponent(component);
                 }
             };
 
-            outPortSender = function (network, destName, dest) {
+            outPortSender = function (dest) {
                 return function (err, value) {
+                    var runtime = this;
                     if (err) {
-                        _sendOutput.apply(network, [ null, null, err ]);
+                        runtime.sendOutput(null, null, err);
                     } else if (dest.end) {
-                        network.sendOutput(value, destName);
+                        runtime.sendOutput(value, portEncode(dest));
                     } else {
-                        addInput(network, FBP.component(dest.name), dest.port, value);
+                        runtime.addInput(portEncode(dest), value);
                     }
                 };
             };
 
-            invokeComponent = function (network, component) {
-                var inN = component.inPorts.length,
-                    outN = component.outPorts.length,
+            invokeComponent = function (component) {
+                var runtime = this,
+                    inPorts = component.inPorts,
+                    outPorts = component.outPorts,
                     args = [],
                     i = 0,
-                    destName,
+                    fromCode,
                     dest;
-                for (i; i < inN; i = i + 1) {
-                    args[i] = component.inputs[component.inPorts[i]];
+                for (i; i < inPorts.length; i = i + 1) {
+                    args[i] = runtime.inputs[component.name][inPorts[i]];
                 }
-                for (i = 0; i < outN; i = i + 1) {
-                    destName = component.name + '.' + component.outPorts[i];
-                    dest = network.arcs[destName];
-                    args[i + inN] = outPortSender(network, destName, dest);
+                for (i = 0; i < outPorts.length; i = i + 1) {
+                    fromCode = portEncode(component.name, outPorts[i]);
+                    dest = runtime.arcs[fromCode];
+                    args[i + inPorts.length] = outPortSender(dest).bind(runtime);
                 }
-                component.body.apply(component.state, args);
+                component.body.apply(runtime.states[component.name], args);
             };
 
             return {
@@ -205,7 +230,6 @@
                         }
                         _c[name] = {
                             name: name,
-                            inputs: {}, // pool for waiting inputs from in ports
                             inPorts: inPorts, // an array of in ports names
                             outPorts: outPorts, // an array of out ports names
                             body: body, // the component body
