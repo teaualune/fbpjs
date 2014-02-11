@@ -89,7 +89,8 @@
                         };
                     if (!err) {
                         runtime.inputs[runtime.nname][portCode] = output;
-                        results.outputs = runtime.inputs[runtime.nname];
+                        results.output = output;
+                        results.port = portCode;
                     }
                     runtime.callback.apply(runtime, [ err, results ]);
                 },

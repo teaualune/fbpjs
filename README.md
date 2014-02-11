@@ -120,8 +120,11 @@ The `callback` argument is a function with signiture `function (err, result)`.
 
 If any error occurs while execution, the `callback` function will be invoked where `err` argument is sent with the error.
 
+Note that if the network contains multiple end ports, they will invoke the callback function individually with corresponding output value.
+
 The `results` argument contains several properties:
-* `outputs`: a plain object where keys are end port names and values are there corresponding output values.
+* `output`: the output value sent to the end port.
+* `port`: the name of the end port that invokes callback function.
 * `interval`: the execution time of the network \(in milliseconds\).
 
 ### Reference

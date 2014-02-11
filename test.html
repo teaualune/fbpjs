@@ -91,9 +91,12 @@
      *  The callback argument is the function that is called upon completion or error occurs.
      *  The error occurs while the component body is invoking the out port functions with error arguments.
      *  The results argument contains several properties:
-     *    outputs
-     *      A plain object containing the outputs of the network.
-     *      The structure is similar to the inputs argument.
+     *    output
+     *      The output value of network end port.
+     *      Each end ports of the network invokes a callback call.
+     *    port
+     *      The name of output port.
+     *      This value determines which end port invokes the callback.
      *    interval
      *      A number indicating execution time (in milliseconds).
      */
@@ -106,7 +109,8 @@
         if (err) {
             alert(err);
         } else {
-            console.log(result.outputs['mul.output']); // should be 9
+            console.log(result.port); // mul.output
+            console.log(result.output); // 9
         }
     });
 
