@@ -77,7 +77,7 @@
                 _go = function (inputs, callback) {
                     var runtime = new Runtime(this, callback);
                     objIterate(inputs, function (input) {
-                        runtime.addInput(input, inputs[input]);
+                        runtime.addInput(runtime.arcs[input], inputs[input]);
                     });
                 },
 
@@ -161,9 +161,8 @@
                     return network;
                 };
 
-            addInput = function (portCode, value) {
+            addInput = function (portObj, value) {
                 var runtime = this,
-                    portObj = portDecode(portCode),
                     component = FBP.component(portObj.name);
                 runtime.inputs[portObj.name][portObj.port] = value;
                 if (objLength(runtime.inputs[portObj.name]) === component.inPorts.length) {
@@ -179,7 +178,7 @@
                     } else if (dest.end) {
                         runtime.sendOutput(value, portEncode(dest));
                     } else {
-                        runtime.addInput(portEncode(dest), value);
+                        runtime.addInput(dest, value);
                     }
                 };
             };
