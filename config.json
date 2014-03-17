@@ -4,6 +4,7 @@
     "footer":  "\n}());",
     "src": [
         "src/init.js",
+        "src/utils.js",
         "src/core.js",
         "src/export.js"
     ],

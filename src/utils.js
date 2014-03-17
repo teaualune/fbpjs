@@ -13,7 +13,7 @@ FBP.utils = {
 
     objLength: function (obj) {
         var n = 0;
-        objIterate(obj, function () {
+        FBP.utils.objIterate(obj, function () {
             n = n + 1;
         });
         return n;

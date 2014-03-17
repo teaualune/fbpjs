@@ -1,18 +1,16 @@
 /*
-   FBP.js
-   http://github.com/teaualune/fbpjs
-   MIT License
+    FBP.js
+    http://github.com/teaualune/fbpjs
+    MIT License
 */
 (function () {
 var FBP = {};
 
 /*jslint sloppy:true, nomen:true*/
-/*global module:true, exports:true */
+/*global FBP:true */
 
-var _c = {},
-    _n = {},
-
-    objIterate = function (obj, iterate) {
+FBP.utils = {
+    objIterate: function (obj, iterate) {
         var O;
         for (O in obj) {
             if (obj.hasOwnProperty(O)) {
@@ -21,13 +19,20 @@ var _c = {},
         }
     },
 
-    objLength = function (obj) {
+    objLength: function (obj) {
         var n = 0;
-        objIterate(obj, function () {
+        FBP.utils.objIterate(obj, function () {
             n = n + 1;
         });
         return n;
-    },
+    }
+};
+
+/*jslint sloppy:true, nomen:true*/
+/*global FBP:true */
+
+var _c = {},
+    _n = {},
 
     portEncode = function (portObj) {
         var name, port;
@@ -71,7 +76,7 @@ var _c = {},
         that.inputs = {};
         that.callback = callback || defaultCallback;
         that.tic = Date.now();
-        objIterate(network.components, function (c) {
+        FBP.utils.objIterate(network.components, function (c) {
             that.states[c] = FBP.component(c).state || {};
             that.inputs[c] = {};
         });
@@ -80,7 +85,7 @@ var _c = {},
 
     _go = function (inputs, callback) {
         var runtime = new Runtime(this, callback);
-        objIterate(inputs, function (input) {
+        FBP.utils.objIterate(inputs, function (input) {
             runtime.addInput(runtime.arcs[input], inputs[input]);
         });
     },
@@ -152,7 +157,7 @@ var _c = {},
             network.arcs[init[i]] = portDecode(init[i]);
             network.components[network.arcs[init[i]].name] = true;
         }
-        objIterate(config.connections, function (conn) {
+        FBP.utils.objIterate(config.connections, function (conn) {
             network.arcs[conn] = portDecode(config.connections[conn]);
             network.components[network.arcs[conn].name] = true;
         });
@@ -169,7 +174,7 @@ addInput = function (portObj, value) {
     var runtime = this,
         component = FBP.component(portObj.name);
     runtime.inputs[portObj.name][portObj.port] = value;
-    if (objLength(runtime.inputs[portObj.name]) === component.inPorts.length) {
+    if (FBP.utils.objLength(runtime.inputs[portObj.name]) === component.inPorts.length) {
         runtime.invokeComponent(component);
     }
 };
