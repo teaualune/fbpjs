@@ -1,7 +1,7 @@
 FBP.js
 ======
 
-A minified and simple implementation of flow-based programming for front-end JavaScript
+A minified and simple implementation of flow-based programming for generic-purpose JavaScript
 ---------------------------------------------------------------------------------------
 
 ### Introduction
@@ -14,7 +14,7 @@ Feel free to modify and redistribute the project if you like.
 
 ### Usage
 
-See `test.html` for usage and documentations in the comments.
+See `examples/test.html` for usage and documentations in the comments.
 
 ### Instructions
 
@@ -126,6 +126,18 @@ The `results` argument contains several properties:
 * `output`: the output value sent to the end port.
 * `port`: the name of the end port that invokes callback function.
 * `interval`: the execution time of the network \(in milliseconds\).
+
+### Build from Source
+
+#### Prerequisite
+
+* Install [Node.js](http://nodejs.org) and make sure that `npm` is installed as well.
+* Install Grunt command line interface via `npm install -g grunt-cli`; `sudo` might be needed for this command.
+
+#### Bulid
+
+1. Run `npm install` to grab build dependencies.
+2. Run `grunt` to build both plain JavaScript file and minified version.
 
 ### Reference
 
