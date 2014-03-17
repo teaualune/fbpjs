@@ -17,5 +17,25 @@ FBP.utils = {
             n = n + 1;
         });
         return n;
+    },
+
+    portEncode: function (portObj) {
+        var name, port;
+        if (arguments.length === 1) {
+            name = portObj.name;
+            port = portObj.port;
+        } else {
+            name = arguments[0];
+            port = arguments[1];
+        }
+        return name + '.' + port;
+    },
+
+    portDecode: function (name) {
+        var v = name.split('.');
+        return {
+            name: v[0],
+            port: v[1]
+        }
     }
 };

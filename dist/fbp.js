@@ -25,16 +25,9 @@ FBP.utils = {
             n = n + 1;
         });
         return n;
-    }
-};
+    },
 
-/*jslint sloppy:true, nomen:true*/
-/*global FBP:true */
-
-var _c = {},
-    _n = {},
-
-    portEncode = function (portObj) {
+    portEncode: function (portObj) {
         var name, port;
         if (arguments.length === 1) {
             name = portObj.name;
@@ -46,13 +39,20 @@ var _c = {},
         return name + '.' + port;
     },
 
-    portDecode = function (name) {
+    portDecode: function (name) {
         var v = name.split('.');
         return {
             name: v[0],
             port: v[1]
         }
-    },
+    }
+};
+
+/*jslint sloppy:true, nomen:true*/
+/*global FBP:true */
+
+var _c = {},
+    _n = {},
 
     addInput,
     outPortSender,
@@ -65,8 +65,7 @@ var _c = {},
     },
 
     Runtime = function (network, callback) {
-        var that = this,
-            i = 0;
+        var that = this;
         that.nname = network.name;
         that.addInput = addInput;
         that.invokeComponent = invokeComponent;
@@ -110,13 +109,13 @@ var _c = {},
             F = {
                 init: function (name, port) {
                     components[name] = true;
-                    arcs[portEncode(name, port)] = {
+                    arcs[FBP.utils.portEncode(name, port)] = {
                         name: name,
                         port: port
                     };
                 },
                 connect: function (fromName, fromPort, toName, toPort) {
-                    var fromCode = portEncode(fromName, fromPort);
+                    var fromCode = FBP.utils.portEncode(fromName, fromPort);
                     components[toName] = true;
                     arcs[fromCode] = {
                         name: toName,
@@ -124,7 +123,7 @@ var _c = {},
                     };
                 },
                 end: function (name, port) {
-                    arcs[portEncode(name, port)] = {
+                    arcs[FBP.utils.portEncode(name, port)] = {
                         name: name,
                         port: port,
                         end: true
@@ -154,15 +153,15 @@ var _c = {},
             end = ('string' === typeof config.end) ? [config.end] : config.end,
             i;
         for (i = 0; i < init.length; i = i + 1) {
-            network.arcs[init[i]] = portDecode(init[i]);
+            network.arcs[init[i]] = FBP.utils.portDecode(init[i]);
             network.components[network.arcs[init[i]].name] = true;
         }
         FBP.utils.objIterate(config.connections, function (conn) {
-            network.arcs[conn] = portDecode(config.connections[conn]);
+            network.arcs[conn] = FBP.utils.portDecode(config.connections[conn]);
             network.components[network.arcs[conn].name] = true;
         });
         for (i = 0; i < end.length; i = i + 1) {
-            network.arcs[end[i]] = portDecode(end[i]);
+            network.arcs[end[i]] = FBP.utils.portDecode(end[i]);
             network.arcs[end[i]].end = true;
         }
         network.go = _go.bind(network);
@@ -185,7 +184,7 @@ outPortSender = function (dest) {
         if (err) {
             runtime.sendOutput(null, null, err);
         } else if (dest.end) {
-            runtime.sendOutput(value, portEncode(dest));
+            runtime.sendOutput(value, FBP.utils.portEncode(dest));
         } else {
             runtime.addInput(dest, value);
         }
@@ -204,7 +203,7 @@ invokeComponent = function (component) {
         args[i] = runtime.inputs[component.name][inPorts[i]];
     }
     for (i = 0; i < outPorts.length; i = i + 1) {
-        fromCode = portEncode(component.name, outPorts[i]);
+        fromCode = FBP.utils.portEncode(component.name, outPorts[i]);
         dest = runtime.arcs[fromCode];
         args[i + inPorts.length] = outPortSender(dest).bind(runtime);
     }
