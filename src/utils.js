@@ -1,8 +1,9 @@
 /*jslint sloppy:true, nomen:true*/
 /*global FBP:true */
 
-FBP.utils = {
-    objIterate: function (obj, iterate) {
+(function (FBP, _FBP) {
+
+var objIterate = function (obj, iterate) {
         var O;
         for (O in obj) {
             if (obj.hasOwnProperty(O)) {
@@ -11,15 +12,15 @@ FBP.utils = {
         }
     },
 
-    objLength: function (obj) {
+    objLength = function (obj) {
         var n = 0;
-        FBP.utils.objIterate(obj, function () {
+        objIterate(obj, function () {
             n = n + 1;
         });
         return n;
     },
 
-    portEncode: function (portObj) {
+    portEncode = function (portObj) {
         var name, port;
         if (arguments.length === 1) {
             name = portObj.name;
@@ -31,11 +32,17 @@ FBP.utils = {
         return name + '.' + port;
     },
 
-    portDecode: function (name) {
+    portDecode = function (name) {
         var v = name.split('.');
         return {
             name: v[0],
             port: v[1]
         }
-    }
-};
+    };
+
+_FBP.objIterate = objIterate;
+_FBP.objLength = objLength;
+_FBP.portEncode = portEncode;
+_FBP.portDecode = portDecode;
+
+}(FBP, _FBP));

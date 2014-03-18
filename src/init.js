@@ -1,1 +1,2 @@
-var FBP = {};
+var FBP = {},
+    _FBP = {};
