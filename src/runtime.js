@@ -3,7 +3,28 @@
 
 (function (FBP, _FBP) {
 
-var addInput = function (portObj, value) {
+_FBP.Runtime = function (network, callback) {
+    var that = this;
+    that.nname = network.name;
+    that.arcs = network.arcs;
+    that.states = {};
+    that.inputs = {};
+    that.callback = callback || function (err) {
+        if (err) {
+            throw err;
+        }
+    };
+    that.tic = Date.now();
+    _FBP.objIterate(network.components, function (c) {
+        that.states[c] = FBP.component(c).state || {};
+        that.inputs[c] = {};
+    });
+    that.inputs[network.name] = {};
+};
+
+_FBP.Runtime.prototype = {
+
+    addInput: function (portObj, value) {
         var runtime = this,
             component = FBP.component(portObj.name);
         runtime.inputs[portObj.name][portObj.port] = value;
@@ -12,7 +33,7 @@ var addInput = function (portObj, value) {
         }
     },
 
-    invokeComponent = function (component) {
+    invokeComponent: function (component) {
         var runtime = this,
             inPorts = component.inPorts,
             outPorts = component.outPorts,
@@ -26,12 +47,12 @@ var addInput = function (portObj, value) {
         for (i = 0; i < outPorts.length; i = i + 1) {
             fromCode = _FBP.portEncode(component.name, outPorts[i]);
             dest = runtime.arcs[fromCode];
-            args[i + inPorts.length] = outPortSender(dest).bind(runtime);
+            args[i + inPorts.length] = runtime.outPortSender(dest);
         }
         component.body.apply(runtime.states[component.name], args);
     },
 
-    sendOutput = function (output, portCode, _err) {
+    sendOutput: function (output, portCode, _err) {
         var runtime = this,
             err = _err || null,
             results = {
@@ -45,15 +66,9 @@ var addInput = function (portObj, value) {
         runtime.callback.apply(runtime, [ err, results ]);
     },
 
-    defaultCallback = function (err) {
-        if (err) {
-            throw err;
-        }
-    },
-
-    outPortSender = function (dest) {
+    outPortSender: function (dest) {
+        var runtime = this;
         return function (err, value) {
-            var runtime = this;
             if (err) {
                 runtime.sendOutput(null, null, err);
             } else if (dest.end) {
@@ -62,24 +77,7 @@ var addInput = function (portObj, value) {
                 runtime.addInput(dest, value);
             }
         };
-    };
-
-_FBP.Runtime = function (network, callback) {
-        var that = this;
-        that.nname = network.name;
-        that.addInput = addInput;
-        that.invokeComponent = invokeComponent;
-        that.sendOutput = sendOutput;
-        that.arcs = network.arcs;
-        that.states = {};
-        that.inputs = {};
-        that.callback = callback || defaultCallback;
-        that.tic = Date.now();
-        _FBP.objIterate(network.components, function (c) {
-            that.states[c] = FBP.component(c).state || {};
-            that.inputs[c] = {};
-        });
-        that.inputs[network.name] = {};
-    };
+    }
+};
 
 }(FBP, _FBP));
