@@ -20,6 +20,7 @@ _FBP.Runtime = function (network, callback) {
         that.inputs[c] = {};
     });
     that.inputs[network.name] = {};
+    that.instant = network.instant;
 };
 
 _FBP.Runtime.prototype = {
@@ -49,7 +50,13 @@ _FBP.Runtime.prototype = {
             dest = runtime.arcs[fromCode];
             args[i + inPorts.length] = runtime.outPortSender(dest);
         }
-        component.body.apply(runtime.states[component.name], args);
+        if (runtime.instant) {
+            component.body.apply(runtime.states[component.name], args);
+        } else {
+            _FBP.async(function () {
+                component.body.apply(runtime.states[component.name], args);
+            });
+        }
     },
 
     sendOutput: function (output, portCode, _err) {

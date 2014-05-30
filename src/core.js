@@ -16,6 +16,7 @@ var _c = {},
     imperativeDefine = function (name, constructor) {
         var components = {},
             arcs = {}, // sparse matrix of all connections, including inputs and outputs
+            instant = false,
             F = {
                 init: function (name, port) {
                     components[name] = true;
@@ -38,6 +39,9 @@ var _c = {},
                         port: port,
                         end: true
                     };
+                },
+                setInstant: function (b) {
+                    instant = b;
                 }
             },
             network = {
@@ -47,6 +51,7 @@ var _c = {},
         constructor(F);
         network.components = components;
         network.arcs = arcs;
+        network.instant = instant;
         network.go = _go.bind(network);
         _n[name] = network;
         return network;
@@ -75,6 +80,7 @@ var _c = {},
             network.arcs[end[i]].end = true;
         }
         network.go = _go.bind(network);
+        network.instant = config.instant;
         _n[network.name] = network;
         return network;
     };

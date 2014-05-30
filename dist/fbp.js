@@ -53,6 +53,18 @@ _FBP.objLength = objLength;
 _FBP.portEncode = portEncode;
 _FBP.portDecode = portDecode;
 
+_FBP.async = (function () {
+    var async;
+    if (typeof process === 'undefined' && typeof setTimeout !== 'undefined') {
+        async = function (fn) {
+            setTimeout(fn, 0);
+        };
+    } else {
+        async = process.nextTick;
+    }
+    return async;
+}());
+
 }(FBP, _FBP));
 
 /*jslint sloppy:true, nomen:true*/
@@ -77,6 +89,7 @@ _FBP.Runtime = function (network, callback) {
         that.inputs[c] = {};
     });
     that.inputs[network.name] = {};
+    that.instant = network.instant;
 };
 
 _FBP.Runtime.prototype = {
@@ -106,7 +119,13 @@ _FBP.Runtime.prototype = {
             dest = runtime.arcs[fromCode];
             args[i + inPorts.length] = runtime.outPortSender(dest);
         }
-        component.body.apply(runtime.states[component.name], args);
+        if (runtime.instant) {
+            component.body.apply(runtime.states[component.name], args);
+        } else {
+            _FBP.async(function () {
+                component.body.apply(runtime.states[component.name], args);
+            });
+        }
     },
 
     sendOutput: function (output, portCode, _err) {
@@ -157,6 +176,7 @@ var _c = {},
     imperativeDefine = function (name, constructor) {
         var components = {},
             arcs = {}, // sparse matrix of all connections, including inputs and outputs
+            instant = false,
             F = {
                 init: function (name, port) {
                     components[name] = true;
@@ -179,6 +199,9 @@ var _c = {},
                         port: port,
                         end: true
                     };
+                },
+                setInstant: function (b) {
+                    instant = b;
                 }
             },
             network = {
@@ -188,6 +211,7 @@ var _c = {},
         constructor(F);
         network.components = components;
         network.arcs = arcs;
+        network.instant = instant;
         network.go = _go.bind(network);
         _n[name] = network;
         return network;
@@ -216,6 +240,7 @@ var _c = {},
             network.arcs[end[i]].end = true;
         }
         network.go = _go.bind(network);
+        network.instant = config.instant;
         _n[network.name] = network;
         return network;
     };

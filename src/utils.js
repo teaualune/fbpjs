@@ -45,4 +45,16 @@ _FBP.objLength = objLength;
 _FBP.portEncode = portEncode;
 _FBP.portDecode = portDecode;
 
+_FBP.async = (function () {
+    var async;
+    if (typeof process === 'undefined' && typeof setTimeout !== 'undefined') {
+        async = function (fn) {
+            setTimeout(fn, 0);
+        };
+    } else {
+        async = process.nextTick;
+    }
+    return async;
+}());
+
 }(FBP, _FBP));
