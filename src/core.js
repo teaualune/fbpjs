@@ -16,7 +16,6 @@ var _c = {},
     imperativeDefine = function (name, constructor) {
         var components = {},
             arcs = {}, // sparse matrix of all connections, including inputs and outputs
-            instant = false,
             F = {
                 init: function (name, port) {
                     components[name] = true;
@@ -39,9 +38,6 @@ var _c = {},
                         port: port,
                         end: true
                     };
-                },
-                setInstant: function (b) {
-                    instant = b;
                 }
             },
             network = {
@@ -51,7 +47,6 @@ var _c = {},
         constructor(F);
         network.components = components;
         network.arcs = arcs;
-        network.instant = instant;
         network.go = _go.bind(network);
         _n[name] = network;
         return network;
@@ -80,7 +75,6 @@ var _c = {},
             network.arcs[end[i]].end = true;
         }
         network.go = _go.bind(network);
-        network.instant = config.instant;
         _n[network.name] = network;
         return network;
     };
@@ -95,7 +89,8 @@ FBP.component = function (config) {
             inPorts = null,
             outPorts = null;
         if (_c[name]) {
-            throw 'component has already defined';
+            // disable redefinition of components
+            return _c[config];
         }
         if ('string' === typeof config.inPorts) {
             inPorts = [config.inPorts];
@@ -110,13 +105,14 @@ FBP.component = function (config) {
         if (body.length !== inPorts.length + outPorts.length) {
             throw 'number of ports do not match between definition and function arguments';
         }
-        _c[name] = {
+        _c[name] = _FBP.profiler.load({
             name: name,
             inPorts: inPorts, // an array of in ports names
             outPorts: outPorts, // an array of out ports names
             body: body, // the component body
-            state: state // internal state of the component
-        };
+            state: state, // internal state of the component
+            profile: {}
+        });
     }
 };
 
@@ -133,5 +129,8 @@ FBP.define = function () {
     }
     return network;
 };
+
+_FBP._n = _n;
+_FBP._c = _c;
 
 }(FBP, _FBP));

@@ -20,7 +20,6 @@ _FBP.Runtime = function (network, callback) {
         that.inputs[c] = {};
     });
     that.inputs[network.name] = {};
-    that.instant = network.instant;
 };
 
 _FBP.Runtime.prototype = {
@@ -41,7 +40,8 @@ _FBP.Runtime.prototype = {
             args = [],
             i = 0,
             fromCode,
-            dest;
+            dest,
+            start;
         for (i; i < inPorts.length; i = i + 1) {
             args[i] = runtime.inputs[component.name][inPorts[i]];
         }
@@ -50,13 +50,9 @@ _FBP.Runtime.prototype = {
             dest = runtime.arcs[fromCode];
             args[i + inPorts.length] = runtime.outPortSender(dest);
         }
-        if (runtime.instant) {
-            component.body.apply(runtime.states[component.name], args);
-        } else {
-            _FBP.async(function () {
-                component.body.apply(runtime.states[component.name], args);
-            });
-        }
+        start = Date.now();
+        component.body.apply(runtime.states[component.name], args);
+        _FBP.profiler.collect(component, Date.now() - start);
     },
 
     sendOutput: function (output, portCode, _err) {
@@ -69,6 +65,9 @@ _FBP.Runtime.prototype = {
             runtime.inputs[runtime.nname][portCode] = output;
             results.output = output;
             results.port = portCode;
+            _FBP.objIterate(_FBP._n[runtime.nname].components, function (cname) {
+                _FBP.profiler.save(_FBP._c[cname]);
+            });
         }
         runtime.callback.apply(runtime, [ err, results ]);
     },
@@ -76,13 +75,15 @@ _FBP.Runtime.prototype = {
     outPortSender: function (dest) {
         var runtime = this;
         return function (err, value) {
-            if (err) {
-                runtime.sendOutput(null, null, err);
-            } else if (dest.end) {
-                runtime.sendOutput(value, _FBP.portEncode(dest));
-            } else {
-                runtime.addInput(dest, value);
-            }
+            _FBP.async(function () {
+                if (err) {
+                    runtime.sendOutput(null, null, err);
+                } else if (dest.end) {
+                    runtime.sendOutput(value, _FBP.portEncode(dest));
+                } else {
+                    runtime.addInput(dest, value);
+                }
+            });
         };
     }
 };

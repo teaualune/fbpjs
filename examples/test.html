@@ -70,10 +70,6 @@
      *      Set an end port for the network.
      *      Note that end ports are not necessary; it depends on the network design.
      *      'port' specifies one of the out ports of the component.
-     *    setInstant(isInstant)
-     *      Set whether the network should be executed instantly.
-     *      Setting this to true makes the execution faster.
-     *      Do not set to true if the network is large and complex to prevent deep call stack.
      *  After definition the define function returns with the network object, so it is convenient to call 'go' directly to invoke the network.
      *  Or the network object can be retrieved by the function FBP.network(name).
      */
@@ -87,8 +83,6 @@
         F.connect('add', 'output', 'mul', 'x');
 
         F.end('mul', 'output');
-
-        F.setInstant(true);
 
     /* network.go(inputs, callback)
      *  Invoke a network.

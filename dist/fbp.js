@@ -72,6 +72,53 @@ _FBP.async = (function () {
 
 (function (FBP, _FBP) {
 
+_FBP.profiler = {};
+
+if ('undefined' === typeof localStorage) {
+    // node.js and DOM storage unsupported browsers do not keep profiling data for now
+    return;
+}
+
+var encode = function (name) {
+    return 'FBP.profile.c.' + name;
+}
+
+_FBP.profiler.load = function (component) {
+    var data = localStorage.getItem(encode(component.name)),
+        interval = 0,
+        counts = 0;
+    if (data) {
+        data = data.split(',');
+        interval = parseFloat(data[0]);
+        counts = parseInt(data[1], 10);
+        if (isNaN(interval)) {
+            interval = 0;
+        }
+        if (isNaN(counts)) {
+            counts = 0;
+        }
+    }
+    component.profile.interval = interval;
+    component.profile.counts = counts;
+    return component;
+};
+
+_FBP.profiler.save = function (component) {
+    localStorage.setItem(encode(component.name), component.profile.interval + ',' + component.profile.counts);
+};
+
+_FBP.profiler.collect = function (component, interval) {
+    component.profile.counts = component.profile.counts + 1;
+    component.profile.interval = (component.profile.interval + interval) / component.profile.counts;
+};
+
+}(FBP, _FBP));
+
+/*jslint sloppy:true, nomen:true*/
+/*global FBP:true */
+
+(function (FBP, _FBP) {
+
 _FBP.Runtime = function (network, callback) {
     var that = this;
     that.nname = network.name;
@@ -89,7 +136,6 @@ _FBP.Runtime = function (network, callback) {
         that.inputs[c] = {};
     });
     that.inputs[network.name] = {};
-    that.instant = network.instant;
 };
 
 _FBP.Runtime.prototype = {
@@ -110,7 +156,8 @@ _FBP.Runtime.prototype = {
             args = [],
             i = 0,
             fromCode,
-            dest;
+            dest,
+            start;
         for (i; i < inPorts.length; i = i + 1) {
             args[i] = runtime.inputs[component.name][inPorts[i]];
         }
@@ -119,13 +166,9 @@ _FBP.Runtime.prototype = {
             dest = runtime.arcs[fromCode];
             args[i + inPorts.length] = runtime.outPortSender(dest);
         }
-        if (runtime.instant) {
-            component.body.apply(runtime.states[component.name], args);
-        } else {
-            _FBP.async(function () {
-                component.body.apply(runtime.states[component.name], args);
-            });
-        }
+        start = Date.now();
+        component.body.apply(runtime.states[component.name], args);
+        _FBP.profiler.collect(component, Date.now() - start);
     },
 
     sendOutput: function (output, portCode, _err) {
@@ -138,6 +181,9 @@ _FBP.Runtime.prototype = {
             runtime.inputs[runtime.nname][portCode] = output;
             results.output = output;
             results.port = portCode;
+            _FBP.objIterate(_FBP._n[runtime.nname].components, function (cname) {
+                _FBP.profiler.save(_FBP._c[cname]);
+            });
         }
         runtime.callback.apply(runtime, [ err, results ]);
     },
@@ -145,13 +191,15 @@ _FBP.Runtime.prototype = {
     outPortSender: function (dest) {
         var runtime = this;
         return function (err, value) {
-            if (err) {
-                runtime.sendOutput(null, null, err);
-            } else if (dest.end) {
-                runtime.sendOutput(value, _FBP.portEncode(dest));
-            } else {
-                runtime.addInput(dest, value);
-            }
+            _FBP.async(function () {
+                if (err) {
+                    runtime.sendOutput(null, null, err);
+                } else if (dest.end) {
+                    runtime.sendOutput(value, _FBP.portEncode(dest));
+                } else {
+                    runtime.addInput(dest, value);
+                }
+            });
         };
     }
 };
@@ -176,7 +224,6 @@ var _c = {},
     imperativeDefine = function (name, constructor) {
         var components = {},
             arcs = {}, // sparse matrix of all connections, including inputs and outputs
-            instant = false,
             F = {
                 init: function (name, port) {
                     components[name] = true;
@@ -199,9 +246,6 @@ var _c = {},
                         port: port,
                         end: true
                     };
-                },
-                setInstant: function (b) {
-                    instant = b;
                 }
             },
             network = {
@@ -211,7 +255,6 @@ var _c = {},
         constructor(F);
         network.components = components;
         network.arcs = arcs;
-        network.instant = instant;
         network.go = _go.bind(network);
         _n[name] = network;
         return network;
@@ -240,7 +283,6 @@ var _c = {},
             network.arcs[end[i]].end = true;
         }
         network.go = _go.bind(network);
-        network.instant = config.instant;
         _n[network.name] = network;
         return network;
     };
@@ -255,7 +297,8 @@ FBP.component = function (config) {
             inPorts = null,
             outPorts = null;
         if (_c[name]) {
-            throw 'component has already defined';
+            // disable redefinition of components
+            return _c[config];
         }
         if ('string' === typeof config.inPorts) {
             inPorts = [config.inPorts];
@@ -270,13 +313,14 @@ FBP.component = function (config) {
         if (body.length !== inPorts.length + outPorts.length) {
             throw 'number of ports do not match between definition and function arguments';
         }
-        _c[name] = {
+        _c[name] = _FBP.profiler.load({
             name: name,
             inPorts: inPorts, // an array of in ports names
             outPorts: outPorts, // an array of out ports names
             body: body, // the component body
-            state: state // internal state of the component
-        };
+            state: state, // internal state of the component
+            profile: {}
+        });
     }
 };
 
@@ -293,6 +337,9 @@ FBP.define = function () {
     }
     return network;
 };
+
+_FBP._n = _n;
+_FBP._c = _c;
 
 }(FBP, _FBP));
 
