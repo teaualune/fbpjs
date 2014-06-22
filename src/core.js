@@ -24,13 +24,16 @@ var _c = {},
                         port: port
                     };
                 },
-                connect: function (fromName, fromPort, toName, toPort) {
+                connect: function (fromName, fromPort, toName, toPort, config) {
                     var fromCode = _FBP.portEncode(fromName, fromPort);
                     components[toName] = true;
                     arcs[fromCode] = {
                         name: toName,
                         port: toPort
                     };
+                    if (config) {
+                        arcs[fromCode].map = config.map;
+                    }
                 },
                 end: function (name, port) {
                     arcs[_FBP.portEncode(name, port)] = {
@@ -67,7 +70,13 @@ var _c = {},
             network.components[network.arcs[init[i]].name] = true;
         }
         _FBP.objIterate(config.connections, function (conn) {
-            network.arcs[conn] = _FBP.portDecode(config.connections[conn]);
+            var obj = config.connections[conn];
+            if ('string' === typeof obj) {
+                network.arcs[conn] = _FBP.portDecode(obj);
+            } else {
+                network.arcs[conn] = _FBP.portDecode(obj.to);
+                network.arcs[conn].map = obj.map;
+            }
             network.components[network.arcs[conn].name] = true;
         });
         for (i = 0; i < end.length; i = i + 1) {
