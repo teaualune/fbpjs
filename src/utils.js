@@ -7,7 +7,7 @@ var objIterate = function (obj, iterate) {
         var O;
         for (O in obj) {
             if (obj.hasOwnProperty(O)) {
-                iterate(O);
+                iterate(O, obj[O]);
             }
         }
     },

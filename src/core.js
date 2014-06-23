@@ -8,8 +8,8 @@ var _c = {},
 
     _go = function (inputs, callback) {
         var runtime = new _FBP.Runtime(this, callback);
-        _FBP.objIterate(inputs, function (input) {
-            runtime.addInput(runtime.arcs[input], inputs[input]);
+        _FBP.objIterate(inputs, function (input, value) {
+            runtime.addInput(runtime.arcs[input], value);
         });
     },
 
@@ -69,8 +69,7 @@ var _c = {},
             network.arcs[init[i]] = _FBP.portDecode(init[i]);
             network.components[network.arcs[init[i]].name] = true;
         }
-        _FBP.objIterate(config.connections, function (conn) {
-            var obj = config.connections[conn];
+        _FBP.objIterate(config.connections, function (conn, obj) {
             if ('string' === typeof obj) {
                 network.arcs[conn] = _FBP.portDecode(obj);
             } else {

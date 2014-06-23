@@ -1,6 +1,6 @@
 {
     "banner": "/*\n    FBP.js\n    http://github.com/teaualune/fbpjs\n    MIT License\n*/\n",
-    "header": "(function () {\n",
+    "header": ";(function () {\n",
     "footer":  "\n}());",
     "src": [
         "src/init.js",
