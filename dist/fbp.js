@@ -3,7 +3,7 @@
     http://github.com/teaualune/fbpjs
     MIT License
 */
-(function () {
+;(function () {
 var FBP = {},
     _FBP = {};
 /*jslint sloppy:true, nomen:true*/
@@ -15,7 +15,7 @@ var objIterate = function (obj, iterate) {
         var O;
         for (O in obj) {
             if (obj.hasOwnProperty(O)) {
-                iterate(O);
+                iterate(O, obj[O]);
             }
         }
     },
@@ -83,6 +83,25 @@ var encode = function (name) {
     return 'FBP.profile.c.' + name;
 }
 
+_FBP.profiler.timestamp = (function () {
+    if ('object' === typeof process && 'function' === typeof process.hrtime) {
+        // node.js hrtime
+        return function () {
+            var hrtime = process.hrtime();
+            return hrtime[0] * 1000 + hrtime[1] / 1000000;
+        };
+    } else if ('object' === typeof performance && 'function' === typeof performance.now) {
+        // IE10, Chrome24, Gecko15, Opera15
+        return function () {
+            return performance.now();
+        };
+    } else {
+        return function () {
+            return Date.now();
+        };
+    }
+}());
+
 _FBP.profiler.load = function (component) {
     var data = localStorage.getItem(encode(component.name)),
         interval = 0,
@@ -130,7 +149,7 @@ _FBP.Runtime = function (network, callback) {
             throw err;
         }
     };
-    that.tic = Date.now();
+    that.tic = _FBP.profiler.timestamp();
     _FBP.objIterate(network.components, function (c) {
         that.states[c] = FBP.component(c).state || {};
         that.inputs[c] = {};
@@ -170,16 +189,16 @@ _FBP.Runtime.prototype = {
             dest = runtime.arcs[fromCode];
             args[i + inPorts.length] = runtime.outPortSender(dest);
         }
-        start = Date.now();
+        start = _FBP.profiler.timestamp();
         component.body.apply(runtime.states[component.name], args);
-        _FBP.profiler.collect(component, Date.now() - start);
+        _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
     },
 
     sendOutput: function (output, portCode, _err) {
         var runtime = this,
             err = _err || null,
             results = {
-                interval: Date.now() - runtime.tic
+                interval: _FBP.profiler.timestamp() - runtime.tic
             };
         if (!err) {
             runtime.inputs[runtime.nname][portCode] = output;
@@ -237,9 +256,9 @@ _FBP.Runtime.prototype = {
                         }
                     };
                 _FBP.async(function () {
-                    var start = Date.now();
+                    var start = _FBP.profiler.timestamp();
                     component.body.apply(runtime.states[component.name], [ input, output ]);
-                    _FBP.profiler.collect(component, Date.now() - start);
+                    _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
                 });
             }(i));
         }

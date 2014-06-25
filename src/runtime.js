@@ -14,7 +14,7 @@ _FBP.Runtime = function (network, callback) {
             throw err;
         }
     };
-    that.tic = Date.now();
+    that.tic = _FBP.profiler.timestamp();
     _FBP.objIterate(network.components, function (c) {
         that.states[c] = FBP.component(c).state || {};
         that.inputs[c] = {};
@@ -54,16 +54,16 @@ _FBP.Runtime.prototype = {
             dest = runtime.arcs[fromCode];
             args[i + inPorts.length] = runtime.outPortSender(dest);
         }
-        start = Date.now();
+        start = _FBP.profiler.timestamp();
         component.body.apply(runtime.states[component.name], args);
-        _FBP.profiler.collect(component, Date.now() - start);
+        _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
     },
 
     sendOutput: function (output, portCode, _err) {
         var runtime = this,
             err = _err || null,
             results = {
-                interval: Date.now() - runtime.tic
+                interval: _FBP.profiler.timestamp() - runtime.tic
             };
         if (!err) {
             runtime.inputs[runtime.nname][portCode] = output;
@@ -121,9 +121,9 @@ _FBP.Runtime.prototype = {
                         }
                     };
                 _FBP.async(function () {
-                    var start = Date.now();
+                    var start = _FBP.profiler.timestamp();
                     component.body.apply(runtime.states[component.name], [ input, output ]);
-                    _FBP.profiler.collect(component, Date.now() - start);
+                    _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
                 });
             }(i));
         }

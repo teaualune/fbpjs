@@ -14,6 +14,25 @@ var encode = function (name) {
     return 'FBP.profile.c.' + name;
 }
 
+_FBP.profiler.timestamp = (function () {
+    if ('object' === typeof process && 'function' === typeof process.hrtime) {
+        // node.js hrtime
+        return function () {
+            var hrtime = process.hrtime();
+            return hrtime[0] * 1000 + hrtime[1] / 1000000;
+        };
+    } else if ('object' === typeof performance && 'function' === typeof performance.now) {
+        // IE10, Chrome24, Gecko15, Opera15
+        return function () {
+            return performance.now();
+        };
+    } else {
+        return function () {
+            return Date.now();
+        };
+    }
+}());
+
 _FBP.profiler.load = function (component) {
     var data = localStorage.getItem(encode(component.name)),
         interval = 0,
