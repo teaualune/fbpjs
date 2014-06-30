@@ -7,6 +7,16 @@
     <script type="text/javascript">
 
     FBP.component({
+        name: 'add-minus',
+        inPorts: ['x', 'y'],
+        outPorts: ['o1', 'o2'],
+        body: function (x, y, o1, o2) {
+            o1(null, x + y);
+            o2(null, x - y);
+        }
+    });
+
+    FBP.component({
         name: 'pow',
         inPorts: 'input',
         outPorts: 'output',
@@ -52,7 +62,24 @@
             }
         }
     }).go({
-        'randomArray.n': 10
+        'randomArray.n': 3
+    }, function (err, result) {
+        console.log(result);
+    });
+
+    FBP.define({
+        name: 'mapexample2',
+        init: ['randomArray.n', 'add-minus.y'],
+        connections: {
+            'randomArray.output': {
+                to: 'add-minus.x',
+                map: true
+            }
+        },
+        end: ['add-minus.o1', 'add-minus.o2']
+    }).go({
+        'randomArray.n': 3,
+        'add-minus.y': [100, 200, 300]
     }, function (err, result) {
         console.log(result);
     });

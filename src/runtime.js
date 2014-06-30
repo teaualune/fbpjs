@@ -29,8 +29,7 @@ _FBP.Runtime.prototype = {
             component = FBP.component(portObj.name);
         runtime.inputs[portObj.name][portObj.port] = value;
         if (_FBP.objLength(runtime.inputs[portObj.name]) === component.inPorts.length) {
-            if (portObj.map && component.inPorts.length === 1 && component.outPorts.length === 1)
-                // TODO support more complicated networks
+            if (portObj.map)
                 runtime.mapInvoke(component);
             else
                 runtime.invokeComponent(component);
@@ -96,33 +95,48 @@ _FBP.Runtime.prototype = {
             inPorts = component.inPorts,
             outPorts = component.outPorts,
             i = 0,
-            dest = runtime.arcs[_FBP.portEncode(component.name, outPorts[0])],
-            inputs = runtime.inputs[component.name][inPorts[0]],
-            outputs = [],
-            outputCounter = 0;
-        if (inputs.length && inputs.length <= 1) {
-            runtime.invokeComponent(component);
-            return;
+            j = 0,
+            dest,// = runtime.arcs[_FBP.portEncode(component.name, outPorts[0])],
+            inputs = runtime.inputs[component.name],
+            inputLength = _FBP.objMax(inputs),
+            args = Array(inputLength),
+            tempArg,
+            outputs = Array(outPorts.length),
+            outputsCounter = Array(outPorts.length);
+        for (i = 0; i < inputLength; i = i + 1) {
+            tempArg = Array(inPorts.length + outPorts.length);
+            for (j = 0; j < inPorts.length; j = j + 1) {
+                tempArg[j] = inputs[inPorts[j]][i];
+            }
+            args[i] = tempArg;
         }
-        for (i = 0; i < inputs.length; i = i + 1) {
+        for (i = 0; i < outPorts.length; i = i + 1) {
+            outputs[i] = Array(inputLength);
+            outputsCounter[i] = 0;
+        }
+        for (i = 0; i < inputLength; i = i + 1) {
             (function (ii) {
-                var input = inputs[ii],
-                    output = function (err, value) {
-                        if (!err) {
-                            outputs[ii] = value;
-                        }
-                        outputCounter += 1;
-                        if (outputCounter === inputs.length) {
-                            if (dest.end) {
-                                runtime.sendOutput(outputs, _FBP.portEncode(dest));
-                            } else {
-                                runtime.addInput(dest, outputs);
+                var j = 0,
+                    input = args[ii];
+                for (j; j < outPorts.length; j = j + 1) {
+                    input[j + inPorts.length] = (function (jj, fromCode) {
+                        var dest = runtime.arcs[fromCode];
+                        return function (err, value) {
+                            outputs[jj][ii] = err ? null : value;
+                            outputsCounter[jj] += 1;
+                            if (outputsCounter[jj] === inputLength) {
+                                if (dest.end) {
+                                    runtime.sendOutput(outputs[jj], fromCode);
+                                } else {
+                                    runtime.addInput(dest, outputs[jj]);
+                                }
                             }
-                        }
-                    };
+                        };
+                    }(j, _FBP.portEncode(component.name, outPorts[j])));
+                }
                 _FBP.async(function () {
                     var start = _FBP.profiler.timestamp();
-                    component.body.apply(runtime.states[component.name], [ input, output ]);
+                    component.body.apply(runtime.states[component.name], input);
                     _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
                 });
             }(i));

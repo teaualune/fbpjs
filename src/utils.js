@@ -57,4 +57,14 @@ _FBP.async = (function () {
     return async;
 }());
 
+_FBP.objMax = function (obj) {
+    var max = 0,
+        temp;
+    objIterate(obj, function (O) {
+        temp = obj[O].length;
+        if (temp > max) max = temp;
+    });
+    return max;
+};
+
 }(FBP, _FBP));
