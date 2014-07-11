@@ -95,7 +95,8 @@ FBP.component = function (config) {
             body = config.body,
             state = config.state || {},
             inPorts = null,
-            outPorts = null;
+            outPorts = null,
+            c;
         if (_c[name]) {
             // disable redefinition of components
             return _c[config];
@@ -113,14 +114,15 @@ FBP.component = function (config) {
         if (body.length !== inPorts.length + outPorts.length) {
             throw 'number of ports do not match between definition and function arguments';
         }
-        _c[name] = _FBP.profiler.load({
+        c = {
             name: name,
             inPorts: inPorts, // an array of in ports names
             outPorts: outPorts, // an array of out ports names
             body: body, // the component body
-            state: state, // internal state of the component
-            profile: {}
-        });
+            state: state // internal state of the component
+        };
+        if (_FBP.profiler.enabled) _FBP.profiler.load(c);
+        _c[name] = c;
     }
 };
 

@@ -3,7 +3,9 @@
 
 (function (FBP, _FBP) {
 
-_FBP.profiler = {};
+_FBP.profiler = {
+    enabled: true
+};
 
 if ('undefined' === typeof localStorage) {
     // node.js and DOM storage unsupported browsers do not keep profiling data for now
@@ -48,9 +50,10 @@ _FBP.profiler.load = function (component) {
             counts = 0;
         }
     }
-    component.profile.interval = interval;
-    component.profile.counts = counts;
-    return component;
+    component.profile = {
+        interval: interval,
+        counts: counts
+    };
 };
 
 _FBP.profiler.save = function (component) {
@@ -58,8 +61,13 @@ _FBP.profiler.save = function (component) {
 };
 
 _FBP.profiler.collect = function (component, interval) {
-    component.profile.counts = component.profile.counts + 1;
-    component.profile.interval = (component.profile.interval + interval) / component.profile.counts;
+    var counts = component.profile.counts;
+    component.profile.interval = (component.profile.interval * counts + interval) / (counts + 1);
+    component.profile.counts = counts + 1;
+};
+
+FBP.enableProfiler = function (enable) {
+    _FBP.profiler.enabled = enable;
 };
 
 }(FBP, _FBP));

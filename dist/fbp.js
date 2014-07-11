@@ -82,7 +82,9 @@ _FBP.objMax = function (obj) {
 
 (function (FBP, _FBP) {
 
-_FBP.profiler = {};
+_FBP.profiler = {
+    enabled: true
+};
 
 if ('undefined' === typeof localStorage) {
     // node.js and DOM storage unsupported browsers do not keep profiling data for now
@@ -127,9 +129,10 @@ _FBP.profiler.load = function (component) {
             counts = 0;
         }
     }
-    component.profile.interval = interval;
-    component.profile.counts = counts;
-    return component;
+    component.profile = {
+        interval: interval,
+        counts: counts
+    };
 };
 
 _FBP.profiler.save = function (component) {
@@ -137,8 +140,13 @@ _FBP.profiler.save = function (component) {
 };
 
 _FBP.profiler.collect = function (component, interval) {
-    component.profile.counts = component.profile.counts + 1;
-    component.profile.interval = (component.profile.interval + interval) / component.profile.counts;
+    var counts = component.profile.counts;
+    component.profile.interval = (component.profile.interval * counts + interval) / (counts + 1);
+    component.profile.counts = counts + 1;
+};
+
+FBP.enableProfiler = function (enable) {
+    _FBP.profiler.enabled = enable;
 };
 
 }(FBP, _FBP));
@@ -159,7 +167,7 @@ _FBP.Runtime = function (network, callback) {
             throw err;
         }
     };
-    that.tic = _FBP.profiler.timestamp();
+    if (_FBP.profiler.enabled) that.tic = _FBP.profiler.timestamp();
     _FBP.objIterate(network.components, function (c) {
         that.states[c] = FBP.component(c).state || {};
         that.inputs[c] = {};
@@ -198,24 +206,25 @@ _FBP.Runtime.prototype = {
             dest = runtime.arcs[fromCode];
             args[i + inPorts.length] = runtime.outPortSender(dest);
         }
-        start = _FBP.profiler.timestamp();
+        if (_FBP.profiler.enabled) start = _FBP.profiler.timestamp();
         component.body.apply(runtime.states[component.name], args);
-        _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
+        if (_FBP.profiler.enabled) _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
     },
 
     sendOutput: function (output, portCode, _err) {
         var runtime = this,
             err = _err || null,
-            results = {
-                interval: _FBP.profiler.timestamp() - runtime.tic
-            };
+            results = {};
+            if (_FBP.profiler.enabled) results.interval = _FBP.profiler.timestamp() - runtime.tic;
         if (!err) {
             runtime.inputs[runtime.nname][portCode] = output;
             results.output = output;
             results.port = portCode;
-            _FBP.objIterate(_FBP._n[runtime.nname].components, function (cname) {
-                _FBP.profiler.save(_FBP._c[cname]);
-            });
+            if (_FBP.profiler.enabled) {
+                _FBP.objIterate(_FBP._n[runtime.nname].components, function (cname) {
+                    _FBP.profiler.save(_FBP._c[cname]);
+                });
+            }
         }
         runtime.callback.apply(runtime, [ err, results ]);
     },
@@ -280,9 +289,9 @@ _FBP.Runtime.prototype = {
                     }(j, _FBP.portEncode(component.name, outPorts[j])));
                 }
                 _FBP.async(function () {
-                    var start = _FBP.profiler.timestamp();
+                    if (_FBP.profiler.enabled) var start = _FBP.profiler.timestamp();
                     component.body.apply(runtime.states[component.name], input);
-                    _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
+                    if (_FBP.profiler.enabled) _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
                 });
             }(i));
         }
@@ -388,7 +397,8 @@ FBP.component = function (config) {
             body = config.body,
             state = config.state || {},
             inPorts = null,
-            outPorts = null;
+            outPorts = null,
+            c;
         if (_c[name]) {
             // disable redefinition of components
             return _c[config];
@@ -406,14 +416,15 @@ FBP.component = function (config) {
         if (body.length !== inPorts.length + outPorts.length) {
             throw 'number of ports do not match between definition and function arguments';
         }
-        _c[name] = _FBP.profiler.load({
+        c = {
             name: name,
             inPorts: inPorts, // an array of in ports names
             outPorts: outPorts, // an array of out ports names
             body: body, // the component body
-            state: state, // internal state of the component
-            profile: {}
-        });
+            state: state // internal state of the component
+        };
+        if (_FBP.profiler.enabled) _FBP.profiler.load(c);
+        _c[name] = c;
     }
 };
 

@@ -14,7 +14,7 @@ _FBP.Runtime = function (network, callback) {
             throw err;
         }
     };
-    that.tic = _FBP.profiler.timestamp();
+    if (_FBP.profiler.enabled) that.tic = _FBP.profiler.timestamp();
     _FBP.objIterate(network.components, function (c) {
         that.states[c] = FBP.component(c).state || {};
         that.inputs[c] = {};
@@ -53,24 +53,25 @@ _FBP.Runtime.prototype = {
             dest = runtime.arcs[fromCode];
             args[i + inPorts.length] = runtime.outPortSender(dest);
         }
-        start = _FBP.profiler.timestamp();
+        if (_FBP.profiler.enabled) start = _FBP.profiler.timestamp();
         component.body.apply(runtime.states[component.name], args);
-        _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
+        if (_FBP.profiler.enabled) _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
     },
 
     sendOutput: function (output, portCode, _err) {
         var runtime = this,
             err = _err || null,
-            results = {
-                interval: _FBP.profiler.timestamp() - runtime.tic
-            };
+            results = {};
+            if (_FBP.profiler.enabled) results.interval = _FBP.profiler.timestamp() - runtime.tic;
         if (!err) {
             runtime.inputs[runtime.nname][portCode] = output;
             results.output = output;
             results.port = portCode;
-            _FBP.objIterate(_FBP._n[runtime.nname].components, function (cname) {
-                _FBP.profiler.save(_FBP._c[cname]);
-            });
+            if (_FBP.profiler.enabled) {
+                _FBP.objIterate(_FBP._n[runtime.nname].components, function (cname) {
+                    _FBP.profiler.save(_FBP._c[cname]);
+                });
+            }
         }
         runtime.callback.apply(runtime, [ err, results ]);
     },
@@ -135,9 +136,9 @@ _FBP.Runtime.prototype = {
                     }(j, _FBP.portEncode(component.name, outPorts[j])));
                 }
                 _FBP.async(function () {
-                    var start = _FBP.profiler.timestamp();
+                    if (_FBP.profiler.enabled) var start = _FBP.profiler.timestamp();
                     component.body.apply(runtime.states[component.name], input);
-                    _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
+                    if (_FBP.profiler.enabled) _FBP.profiler.collect(component, _FBP.profiler.timestamp() - start);
                 });
             }(i));
         }
