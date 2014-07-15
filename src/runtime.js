@@ -68,8 +68,11 @@ _FBP.Runtime.prototype = {
             results.output = output;
             results.port = portCode;
             if (_FBP.profiler.enabled) {
+                results.profile = {};
                 _FBP.objIterate(_FBP._n[runtime.nname].components, function (cname) {
-                    _FBP.profiler.save(_FBP._c[cname]);
+                    var component = _FBP._c[cname];
+                    results.profile[cname] = _FBP.profiler.average(component.profile);
+                    _FBP.profiler.save(component);
                 });
             }
         }

@@ -9,6 +9,8 @@ _FBP.profiler = {
 
 if ('undefined' === typeof localStorage) {
     // node.js and DOM storage unsupported browsers do not keep profiling data for now
+    FBP.enableProfiler = function () {};
+    _FBP.profiler.enabled = false;
     return;
 }
 
@@ -35,8 +37,8 @@ _FBP.profiler.timestamp = (function () {
     }
 }());
 
-_FBP.profiler.load = function (component) {
-    var data = localStorage.getItem(encode(component.name)),
+_FBP.profiler._load = function (name) {
+    var data = localStorage.getItem(encode(name)),
         interval = 0,
         counts = 0;
     if (data) {
@@ -50,20 +52,43 @@ _FBP.profiler.load = function (component) {
             counts = 0;
         }
     }
-    component.profile = {
+    return {
         interval: interval,
         counts: counts
     };
 };
 
-_FBP.profiler.save = function (component) {
-    localStorage.setItem(encode(component.name), component.profile.interval + ',' + component.profile.counts);
+_FBP.profiler._save = function (name, profile) {
+    localStorage.setItem(encode(name), profile.interval + ',' + profile.counts);
+};
+
+_FBP.profiler.load = function (component) {
+    component.profile = [];
+};
+
+_FBP.profiler.save = function (component, interval) {
+    var storedProfile = _FBP.profiler._load(component.name),
+        interval = 0,
+        length = component.profile.length;
+    for (var i = 0; i < length; i += 1) {
+        interval += component.profile.pop();
+    }
+    storedProfile.interval = (storedProfile.interval * storedProfile.counts + interval) / (storedProfile.counts + length);
+    storedProfile.counts += length;
+    _FBP.profiler._save(component.name, storedProfile);
+};
+
+_FBP.profiler.average = function (profile) {
+    var interval = 0,
+        length = profile.length;
+    for (var i = 0; i < length; i += 1) {
+        interval += profile[i];
+    }
+    return interval / length;
 };
 
 _FBP.profiler.collect = function (component, interval) {
-    var counts = component.profile.counts;
-    component.profile.interval = (component.profile.interval * counts + interval) / (counts + 1);
-    component.profile.counts = counts + 1;
+    component.profile.push(interval);
 };
 
 FBP.enableProfiler = function (enable) {

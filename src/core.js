@@ -121,8 +121,8 @@ FBP.component = function (config) {
             body: body, // the component body
             state: state // internal state of the component
         };
-        if (_FBP.profiler.enabled) _FBP.profiler.load(c);
         _c[name] = c;
+        if (_FBP.profiler.enabled) _FBP.profiler.load(c);
     }
 };
 
