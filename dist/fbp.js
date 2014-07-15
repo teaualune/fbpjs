@@ -82,20 +82,63 @@ _FBP.objMax = function (obj) {
 
 (function (FBP, _FBP) {
 
+var root = this,
+    encode,
+    deserialize;
+
 _FBP.profiler = {
     enabled: true
 };
 
-if ('undefined' === typeof localStorage) {
-    // node.js and DOM storage unsupported browsers do not keep profiling data for now
-    FBP.enableProfiler = function () {};
-    _FBP.profiler.enabled = false;
-    return;
+if ('undefined' === typeof root.localStorage) {
+    if ('undefined' === typeof root.require) {
+        // localStorage-unsupported browsers do not keep profiling data for now
+        FBP.enableProfiler = function () {};
+        _FBP.profiler.enabled = false;
+        return;
+    } else {
+        // Node.js
+        var fs = require('fs');
+        _FBP.profiler._load = function (name) {
+            return deserialize(fs.readFileSync('FBP-profile-' + name + '.txt', 'utf-8'));
+        };
+        _FBP.profiler._save = function (name, profile) {
+            fs.writeFileSync('FBP-profile-' + name + '.txt', profile.interval + ',' + profile.counts);
+        };
+    }
+} else {
+    // localStorage
+    _FBP.profiler._load = function (name) {
+        return deserialize(localStorage.getItem(encode(name)));
+    };
+    _FBP.profiler._save = function (name, profile) {
+        localStorage.setItem(encode(name), profile.interval + ',' + profile.counts);
+    };
 }
 
-var encode = function (name) {
+encode = function (name) {
     return 'FBP.profile.c.' + name;
-}
+};
+
+deserialize = function (data) {
+    var interval = 0,
+        counts = 0;
+    if (data) {
+        data = data.split(',');
+        interval = parseFloat(data[0]);
+        counts = parseInt(data[1], 10);
+        if (isNaN(interval)) {
+            interval = 0;
+        }
+        if (isNaN(counts)) {
+            counts = 0;
+        }
+    }
+    return {
+        interval: interval,
+        counts: counts
+    };
+};
 
 _FBP.profiler.timestamp = (function () {
     if ('object' === typeof process && 'function' === typeof process.hrtime) {
@@ -115,31 +158,6 @@ _FBP.profiler.timestamp = (function () {
         };
     }
 }());
-
-_FBP.profiler._load = function (name) {
-    var data = localStorage.getItem(encode(name)),
-        interval = 0,
-        counts = 0;
-    if (data) {
-        data = data.split(',');
-        interval = parseFloat(data[0]);
-        counts = parseInt(data[1], 10);
-        if (isNaN(interval)) {
-            interval = 0;
-        }
-        if (isNaN(counts)) {
-            counts = 0;
-        }
-    }
-    return {
-        interval: interval,
-        counts: counts
-    };
-};
-
-_FBP.profiler._save = function (name, profile) {
-    localStorage.setItem(encode(name), profile.interval + ',' + profile.counts);
-};
 
 _FBP.profiler.load = function (component) {
     component.profile = [];
