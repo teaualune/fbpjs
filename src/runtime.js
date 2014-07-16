@@ -80,6 +80,7 @@ _FBP.Runtime.prototype = {
     },
 
     outPortSender: function (dest) {
+        if (!dest) return function () {};
         var runtime = this;
         return function (err, value) {
             _FBP.async(function () {
@@ -125,6 +126,7 @@ _FBP.Runtime.prototype = {
                 for (j; j < outPorts.length; j = j + 1) {
                     input[j + inPorts.length] = (function (jj, fromCode) {
                         var dest = runtime.arcs[fromCode];
+                        if (!dest) return function () {};
                         return function (err, value) {
                             outputs[jj][ii] = err ? null : value;
                             outputsCounter[jj] += 1;
